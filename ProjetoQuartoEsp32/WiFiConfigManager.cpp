@@ -7,7 +7,7 @@ void WiFiConfigManager::begin() {
   }
 
   if (!connectToSavedNetwork()) {
-    startAP();
+    startAP(); // Inicia o Access Point
   }
 
   server.on("/", std::bind(&WiFiConfigManager::handleRoot, this));
@@ -36,8 +36,15 @@ bool WiFiConfigManager::connectToSavedNetwork() {
   String password = file.readStringUntil('\n');
   file.close();
 
+  // Remove espaços em branco e verifica se as credenciais são válidas
   ssid.trim();
   password.trim();
+
+  if (ssid.length() == 0 || password.length() == 0) {
+    Serial.println("Credenciais inválidas no arquivo wifi.txt. Apagando...");
+    SPIFFS.remove("/wifi.txt"); // Apaga o arquivo corrompido
+    return false;
+  }
 
   Serial.println("Conectando à rede salva: " + ssid);
   WiFi.begin(ssid.c_str(), password.c_str());
