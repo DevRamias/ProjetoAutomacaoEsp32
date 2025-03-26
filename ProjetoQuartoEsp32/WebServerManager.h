@@ -16,6 +16,7 @@ private:
   RelayManager* relayManager;
   NTPManager* ntpManager;
   WiFiManager* wifiManager;
+  bool shouldStartPortal;
 
   void handleRoot();
   void handleStart();
@@ -23,6 +24,7 @@ private:
   void handleTime();
   void handleWiFiConfig();
   void handleStatus();
-  bool shouldStartPortal = false;
+  void handleRemaining();
 };
+
 #endif

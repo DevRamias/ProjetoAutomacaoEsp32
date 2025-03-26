@@ -31,3 +31,12 @@ void RelayManager::stop() {
 bool RelayManager::isActive() {
   return relayActive;
 }
+
+// Adicione estas novas funções
+unsigned long RelayManager::getStartTime() {
+  return relayStartTime;
+}
+
+unsigned long RelayManager::getDuration() {
+  return relayDuration;
+}

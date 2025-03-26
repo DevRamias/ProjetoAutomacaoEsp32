@@ -9,7 +9,9 @@ public:
   void start(unsigned long duration);
   void stop();
   bool isActive();
-
+  unsigned long getStartTime();
+  unsigned long getDuration();
+  
 private:
   int relayPin;
   unsigned long relayStartTime;
