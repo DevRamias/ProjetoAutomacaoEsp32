@@ -253,6 +253,7 @@ void handleRoot() {
 }
 
 void setup() {
+  Serial.begin(115200);
   pinMode(relayPin, OUTPUT);
   digitalWrite(relayPin, LOW); // Inicializa o relé desligado
 
