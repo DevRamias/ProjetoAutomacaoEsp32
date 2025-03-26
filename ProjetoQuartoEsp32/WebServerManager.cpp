@@ -17,6 +17,16 @@ const char* htmlPage = R"rawliteral(
     .btn-info { background-color: #17a2b8; }
     .progress { height: 20px; background-color: #e9ecef; margin: 10px 0; }
     .progress-bar { height: 100%; background-color: #007bff; }
+    #portalStatus {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px;
+      background-color: #ffcc00;
+      text-align: center;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
@@ -73,8 +83,21 @@ const char* htmlPage = R"rawliteral(
       fetch('/wificonfig')
         .then(response => response.text())
         .then(message => {
-          alert(message);
-          setTimeout(() => { window.location.reload(); }, 3000);
+          // Mostra o status do portal
+          const statusElement = document.createElement('div');
+          statusElement.id = 'portalStatus';
+          statusElement.textContent = message;
+          document.body.prepend(statusElement);
+          
+          // Atualiza a cada segundo
+          let countdown = 10;
+          const interval = setInterval(() => {
+            statusElement.textContent = `${message} Recarregando em ${countdown--}s...`;
+            if (countdown < 0) {
+              clearInterval(interval);
+              window.location.reload();
+            }
+          }, 1000);
         });
     }
     
@@ -113,6 +136,22 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
 }
 
 void WebServerManager::handleClient() {
+  static bool portalRequested = false;
+  static unsigned long portalStartTime = 0;
+  
+  if (shouldStartPortal && !portalRequested) {
+    portalRequested = true;
+    portalStartTime = millis() + 100; // Pequeno delay para responder ao cliente
+  }
+  
+  if (portalRequested && millis() >= portalStartTime) {
+    shouldStartPortal = false;
+    portalRequested = false;
+    server.stop();
+    wifiManager->startConfigPortal("ESP32-Config");
+    server.begin();
+  }
+  
   server.handleClient();
 }
 
@@ -145,7 +184,6 @@ void WebServerManager::handleStatus() {
 }
 
 void WebServerManager::handleWiFiConfig() {
-  server.send(200, "text/plain", "Conecte-se ao AP 'ESP32-Config' para configurar o WiFi");
-  delay(1000);
-  wifiManager->startConfigPortal("ESP32-Config");
+  shouldStartPortal = true;
+  server.send(200, "text/plain", "Portal WiFi será iniciado. Conecte-se ao AP 'ESP32-Config'");
 }

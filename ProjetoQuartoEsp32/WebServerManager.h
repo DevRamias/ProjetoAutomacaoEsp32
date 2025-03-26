@@ -23,5 +23,6 @@ private:
   void handleTime();
   void handleWiFiConfig();
   void handleStatus();
+  bool shouldStartPortal = false;
 };
 #endif
