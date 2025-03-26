@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "WiFiManager.h"
 
 void WiFiManager::connect(const char* ssid, const char* password) {

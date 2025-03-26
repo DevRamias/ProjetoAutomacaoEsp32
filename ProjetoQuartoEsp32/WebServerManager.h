@@ -1,3 +1,4 @@
+// WebServerManager.h
 #ifndef WEB_SERVER_MANAGER_H
 #define WEB_SERVER_MANAGER_H
 
@@ -7,6 +8,7 @@
 
 class WebServerManager {
 public:
+  WebServerManager() : server(80) {} // Inicializa na porta 80
   void begin(RelayManager* relayManager, NTPManager* ntpManager);
   void handleClient();
 
@@ -19,6 +21,7 @@ private:
   void handleStart();
   void handleStop();
   void handleTime();
+  void handleNotFound(); // Adicionar para lidar com URLs não encontradas
 };
 
 #endif

@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "WebServerManager.h"
 
 const char* htmlPage = R"rawliteral(
@@ -38,7 +39,28 @@ const char* htmlPage = R"rawliteral(
     <div id="status" class="alert alert-info mt-3">Ventilador Desligado</div>
   </div>
   <script>
-    /* JavaScript aqui */
+    function updateTime() {
+  fetch('/time')
+    .then(response => response.text())
+    .then(time => {
+      document.getElementById('currentTime').textContent = time;
+    });
+  setTimeout(updateTime, 1000);
+}
+
+// Iniciar a atualização do tempo quando a página carrega
+window.onload = function() {
+  updateTime();
+  
+  // Verificar status do ventilador periodicamente
+  setInterval(() => {
+    fetch('/status') // Você precisará implementar esta rota
+      .then(response => response.text())
+      .then(status => {
+        document.getElementById('status').textContent = status;
+      });
+  }, 1000);
+};
   </script>
 </body>
 </html>
@@ -80,4 +102,3 @@ void WebServerManager::handleStop() {
 void WebServerManager::handleTime() {
   server.send(200, "text/plain", ntpManager->getFormattedTime());
 }
-

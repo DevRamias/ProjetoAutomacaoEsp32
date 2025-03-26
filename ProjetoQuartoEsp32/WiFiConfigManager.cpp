@@ -36,17 +36,16 @@ bool WiFiConfigManager::connectToSavedNetwork() {
   String password = file.readStringUntil('\n');
   file.close();
 
-  // Remove espaços em branco e verifica se as credenciais são válidas
   ssid.trim();
   password.trim();
 
   if (ssid.length() == 0 || password.length() == 0) {
-    Serial.println("Credenciais inválidas no arquivo wifi.txt. Apagando...");
-    SPIFFS.remove("/wifi.txt"); // Apaga o arquivo corrompido
+    Serial.println("Credenciais invalidas no arquivo wifi.txt. Apagando...");
+    SPIFFS.remove("/wifi.txt");
     return false;
   }
 
-  Serial.println("Conectando à rede salva: " + ssid);
+  Serial.println("Conectando a rede salva: " + ssid);
   WiFi.begin(ssid.c_str(), password.c_str());
 
   int attempts = 0;
@@ -63,13 +62,14 @@ bool WiFiConfigManager::connectToSavedNetwork() {
     connected = true;
     return true;
   } else {
-    Serial.println("\nFalha ao conectar à rede salva.");
+    Serial.println("\nFalha ao conectar a rede salva.");
     connected = false;
     return false;
   }
 }
 
 void WiFiConfigManager::startAP() {
+  connected = false;
   WiFi.softAP("ESP32_Config", "12345678");
   Serial.println("Access Point iniciado!");
   Serial.print("IP do AP: ");
@@ -94,8 +94,8 @@ void WiFiConfigManager::deleteSavedNetwork() {
 
 void WiFiConfigManager::handleRoot() {
   String html = "<html><body>";
-  html += "<h1>Configuração Wi-Fi</h1>";
-  html += "<p><a href='/scan'>Ver redes disponíveis</a></p>";
+  html += "<h1>Configuracao Wi-Fi</h1>";
+  html += "<p><a href='/scan'>Ver redes disponiveis</a></p>";
   html += "<p><a href='/delete'>Apagar rede salva</a></p>";
   html += "</body></html>";
   server.send(200, "text/html", html);
@@ -103,7 +103,7 @@ void WiFiConfigManager::handleRoot() {
 
 void WiFiConfigManager::handleScan() {
   String html = "<html><body>";
-  html += "<h1>Redes Wi-Fi Disponíveis</h1>";
+  html += "<h1>Redes Wi-Fi Disponiveis</h1>";
   html += "<ul>";
 
   int numNetworks = WiFi.scanNetworks();
@@ -125,9 +125,8 @@ void WiFiConfigManager::handleConnect() {
     String password = server.arg("password");
 
     if (password == "") {
-      // Pede a senha
       String html = "<html><body>";
-      html += "<h1>Conectar à rede: " + ssid + "</h1>";
+      html += "<h1>Conectar a rede: " + ssid + "</h1>";
       html += "<form action='/connect' method='get'>";
       html += "<input type='hidden' name='ssid' value='" + ssid + "'>";
       html += "Senha: <input type='password' name='password'>";
@@ -136,7 +135,6 @@ void WiFiConfigManager::handleConnect() {
       html += "</body></html>";
       server.send(200, "text/html", html);
     } else {
-      // Tenta conectar
       WiFi.begin(ssid.c_str(), password.c_str());
       int attempts = 0;
       while (WiFi.status() != WL_CONNECTED && attempts < 20) {
@@ -149,6 +147,7 @@ void WiFiConfigManager::handleConnect() {
         server.send(200, "text/plain", "Conectado! IP: " + WiFi.localIP());
         connected = true;
       } else {
+        connected = false;
         server.send(200, "text/plain", "Falha ao conectar.");
       }
     }
