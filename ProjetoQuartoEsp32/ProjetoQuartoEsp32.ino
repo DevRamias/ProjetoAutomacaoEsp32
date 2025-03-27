@@ -2,6 +2,7 @@
 #include "NTPManager.h"
 #include "RelayManager.h"
 #include "WebServerManager.h"
+#include <ESPmDNS.h>
 
 WiFiManager wifiManager;
 NTPManager ntpManager;
@@ -27,7 +28,17 @@ void setup() {
   ntpManager.begin();
   relayManager.begin();
   webServerManager.begin(&relayManager, &ntpManager, &wifiManager);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!MDNS.begin("esp32")) {
+      Serial.println("Erro ao iniciar mDNS!");
+    } else {
+      Serial.println("mDNS iniciado! Acesse: http://esp32.local");
+      MDNS.addService("http", "tcp", 80); // Adiciona serviço HTTP
+    }
+  }
 }
+
 
 void loop() {
   webServerManager.handleClient();

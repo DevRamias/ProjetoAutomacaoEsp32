@@ -126,6 +126,14 @@ const char* htmlPage = R"rawliteral(
         <i class="fas fa-info-circle"></i> Ventilador Desligado
       </div>
     </div>
+
+    <div class="access-info alert alert-secondary mt-4">
+      <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
+      <input type="text" class="form-control" value="http://esp32.local" readonly
+             onclick="this.select()" style="text-align: center;">
+      <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
+    </div>
+
   </div>
 
   <button class="btn btn-secondary theme-switch rounded-circle" onclick="toggleTheme()">
