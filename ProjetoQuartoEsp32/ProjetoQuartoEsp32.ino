@@ -4,9 +4,13 @@
 #include "WebServerManager.h"
 #include <ESPmDNS.h>
 
+#define DHTPIN 4      // Pino onde o DHT está conectado (ajuste se necessário)
+#define DHTTYPE DHT11 // Tipo do sensor (DHT11 ou DHT22)
+
 WiFiManager wifiManager;
 NTPManager ntpManager;
 RelayManager relayManager(5); // Pino do relé
+DHTManager dhtManager(DHTPIN, DHTTYPE);
 WebServerManager webServerManager;
 
 void setup() {
@@ -27,7 +31,7 @@ void setup() {
 
   ntpManager.begin();
   relayManager.begin();
-  webServerManager.begin(&relayManager, &ntpManager, &wifiManager);
+  webServerManager.begin(&relayManager, &ntpManager, &wifiManager, &dhtManager);
 
   if (WiFi.status() == WL_CONNECTED) {
     if (!MDNS.begin("esp32")) {

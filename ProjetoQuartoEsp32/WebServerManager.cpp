@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "WebServerManager.h"
+#include <ArduinoJson.h>
 
 const char* htmlPage = R"rawliteral(
 <!DOCTYPE html>
@@ -126,6 +127,49 @@ const char* htmlPage = R"rawliteral(
         <i class="fas fa-info-circle"></i> Ventilador Desligado
       </div>
     </div>
+
+    <!-- ===== NOVO CARD AUTOMÁTICO ===== -->
+<div class="card p-4 mt-3" style="border-left: 4px solid #4CAF50;">
+  <h3><i class="fas fa-robot"></i> Controle Automático</h3>
+  
+  <div class="row g-3 mb-3">
+    <!-- HORÁRIO DE FUNCIONAMENTO -->
+    <div class="col-md-6">
+      <label class="form-label">Das</label>
+      <input type="time" class="form-control" id="autoStart" value="14:00">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Até</label>
+      <input type="time" class="form-control" id="autoEnd" value="22:00">
+    </div>
+    
+    <!-- LIMIAR DE TEMPERATURA + INTERVALO DE VERIFICAÇÃO -->
+    <div class="col-md-6">
+      <label class="form-label">Ligar acima de</label>
+      <div class="input-group">
+        <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
+        <span class="input-group-text">°C</span>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Verificar a cada</label>
+      <div class="input-group">
+        <input type="number" class="form-control" id="autoCheckInterval" value="10" min="1">
+        <span class="input-group-text">min</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- BOTÃO DE ATIVAÇÃO -->
+  <button onclick="saveAutoSettings()" class="btn btn-success w-100">
+    <i class="fas fa-power-off me-2"></i> Ativar Automático
+  </button>
+  
+  <!-- STATUS -->
+  <div id="autoStatus" class="alert alert-warning mt-3 mb-0">
+    <i class="fas fa-info-circle me-2"></i> Aguardando ativação...
+  </div>
+</div>
 
     <div class="access-info alert alert-secondary mt-4">
       <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
@@ -314,16 +358,62 @@ function updateStatusUI(status) {
     window.addEventListener('beforeunload', () => {
       localStorage.setItem('darkTheme', isDarkTheme);
     });
+    // ===== FUNÇÃO PARA SALVAR AS CONFIGURAÇÕES AUTOMÁTICAS =====
+function saveAutoSettings() {
+  // Pega os valores dos inputs
+  const autoStart = document.getElementById('autoStart').value;
+  const autoEnd = document.getElementById('autoEnd').value;
+  const autoTemp = parseFloat(document.getElementById('autoTemp').value);
+  const autoCheckInterval = parseInt(document.getElementById('autoCheckInterval').value);
+
+  // Validações básicas
+  if (!autoStart || !autoEnd || isNaN(autoTemp) {
+    alert("Preencha todos os campos corretamente!");
+    return;
+  }
+
+  // Monta o objeto de configuração
+  const settings = {
+    startTime: autoStart,
+    endTime: autoEnd,
+    minTemp: autoTemp,
+    checkInterval: autoCheckInterval
+  };
+
+  // Envia para o ESP32 via POST
+  fetch('/set-auto', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById('autoStatus').innerHTML = `
+        <i class="fas fa-check-circle me-2"></i> Automático ativo: ${autoStart} às ${autoEnd} | > ${autoTemp}°C
+      `;
+      document.getElementById('autoStatus').className = 'alert alert-success mt-3 mb-0';
+    } else {
+      alert("Erro ao ativar: " + data.error);
+    }
+  })
+  .catch(error => {
+    alert("Falha na conexão com o ESP32");
+  });
+}
   </script>
 </body>
 </html>
 )rawliteral";
 
-void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager) {
+void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager) {
+  // Inicializa ponteiros
   this->relayManager = relayManager;
   this->ntpManager = ntpManager;
   this->wifiManager = wifiManager;
+  this->dhtManager = dhtManager;  // Novo: inicializa o DHTManager
 
+  // Configura rotas
   server.on("/", HTTP_GET, [this]() { handleRoot(); });
   server.on("/start", HTTP_GET, [this]() { handleStart(); });
   server.on("/stop", HTTP_GET, [this]() { handleStop(); });
@@ -331,6 +421,35 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   server.on("/status", HTTP_GET, [this]() { handleStatus(); });
   server.on("/wificonfig", HTTP_GET, [this]() { handleWiFiConfig(); });
   server.on("/remaining", HTTP_GET, [this]() { handleRemaining(); });
+
+  // Nova rota para controle automático
+  server.on("/set-auto", HTTP_POST, [this]() {
+    if (server.hasArg("plain")) {
+      DynamicJsonDocument doc(256);
+      DeserializationError error = deserializeJson(doc, server.arg("plain"));
+      
+      if (error) {
+        server.send(400, "text/plain", "JSON inválido");
+        return;
+      }
+
+      // Salva as configurações
+      this->autoStartTime = doc["startTime"].as<String>();
+      this->autoEndTime = doc["endTime"].as<String>();
+      this->autoMinTemp = doc["minTemp"];
+      this->autoCheckIntervalMinutes = doc["checkInterval"];
+      this->autoModeActive = true;  // Ativa o modo automático
+
+      // Confirmação
+      DynamicJsonDocument response(128);
+      response["success"] = true;
+      String responseStr;
+      serializeJson(response, responseStr);
+      server.send(200, "application/json", responseStr);
+    } else {
+      server.send(400, "text/plain", "Dados faltando");
+    }
+  });
   
   server.begin();
   Serial.println("Servidor web iniciado!");
@@ -339,6 +458,13 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
 void WebServerManager::handleClient() {
   static bool portalRequested = false;
   static unsigned long portalStartTime = 0;
+  static unsigned long lastCheck = 0;
+  
+  // Verificação automática (a cada X minutos)
+  if (autoModeActive && millis() - lastCheck >= (autoCheckIntervalMinutes * 60000)) {
+    verificarCondicoesAutomaticas();  // Você implementará essa função
+    lastCheck = millis();
+  }
   
   if (shouldStartPortal && !portalRequested) {
     portalRequested = true;
@@ -398,4 +524,21 @@ void WebServerManager::handleRemaining() {
   } else {
     server.send(200, "application/json", "{\"remaining\":0}");
   }
+}
+
+void WebServerManager::verificarCondicoesAutomaticas() {
+    String horaAtual = ntpManager->getFormattedTime().substring(0, 5); // "HH:MM"
+    
+    if (horaAtual >= autoStartTime && horaAtual <= autoEndTime) {
+        float temperatura = dhtManager->readTemperature();  // Lê do DHTManager
+        float umidade = dhtManager->readHumidity();
+        
+        if (!isnan(temperatura) {  // Verifica se a leitura é válida
+            float sensacaoTermica = temperatura + (umidade * 0.1);  // Fórmula simplificada
+            
+            if (sensacaoTermica >= autoMinTemp && !relayManager->isActive()) {
+                relayManager->start(30);  // Liga por 30 minutos
+            }
+        }
+    }
 }

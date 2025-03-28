@@ -1,6 +1,7 @@
 #ifndef WEB_SERVER_MANAGER_H
 #define WEB_SERVER_MANAGER_H
 
+#include "DHTManager.h"
 #include <WebServer.h>
 #include "RelayManager.h"
 #include "NTPManager.h"
@@ -8,15 +9,22 @@
 
 class WebServerManager {
 public:
-  void begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager);
+  void begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager);
   void handleClient();
+  void verificarCondicoesAutomaticas();
 
 private:
   WebServer server;
   RelayManager* relayManager;
   NTPManager* ntpManager;
   WiFiManager* wifiManager;
+  DHTManager* dhtManager;
   bool shouldStartPortal;
+  // Controle automático
+  String autoStartTime, autoEndTime;
+  float autoMinTemp;
+  int autoCheckIntervalMinutes;
+  bool autoModeActive;
 
   void handleRoot();
   void handleStart();
