@@ -142,44 +142,42 @@ const char* htmlPage = R"rawliteral(
       </div>
 
       <!-- Controle Automático -->
-      <div class="card p-4 mt-3" style="border-left: 4px solid #4CAF50;">
-        <h3><i class="fas fa-robot"></i> Controle Automático</h3>
+      <div class="card p-4 mt-3">
+  <h3><i class="fas fa-robot"></i> Controle Automático</h3>
+  
+  <!-- Toggle ON/OFF -->
+  <div class="form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="autoModeToggle">
+    <label class="form-check-label" for="autoModeToggle">Modo Automático Ativo</label>
+  </div>
 
-        <div class="form-switch mb-3">
-          <input class="form-check-input" type="checkbox" id="autoModeToggle" checked>
-          <label class="form-check-label" for="autoModeToggle">Modo Automático Ativo</label>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label">Das</label>
-            <input type="time" class="form-control" id="autoStart" value="14:00">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Até</label>
-            <input type="time" class="form-control" id="autoEnd" value="22:00">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Ligar acima de</label>
-            <div class="input-group">
-              <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
-              <span class="input-group-text">°C</span>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Standby após desligar</label>
-            <div class="input-group">
-              <input type="number" class="form-control" id="autoCheckInterval" value="10" min="2">
-              <span class="input-group-text">min</span>
-            </div>
-          </div>
-        <button onclick="saveAutoSettings()" class="btn btn-success w-100">
-          <i class="fas fa-power-off me-2"></i> Ativar Automático
-        </button>
-        <div id="autoStatus" class="alert alert-warning mt-3 mb-0">
-          <i class="fas fa-info-circle me-2"></i> Aguardando ativação...
+  <!-- Configurações (mostrar só quando ativo) -->
+  <div id="autoSettings" style="display:none;">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Ligar acima de</label>
+        <div class="input-group">
+          <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
+          <span class="input-group-text">°C</span>
         </div>
       </div>
+      <div class="col-md-6">
+        <label class="form-label">Tempo ligado</label>
+        <div class="input-group">
+          <input type="number" class="form-control" id="ventilationTime" value="30" min="1">
+          <span class="input-group-text">min</span>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">Standby entre ciclos</label>
+        <div class="input-group">
+          <input type="number" class="form-control" id="standbyTime" value="10" min="2">
+          <span class="input-group-text">min</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
       <!-- Status e Controles -->
       <div id="countdown" class="my-3"></div>
@@ -206,303 +204,276 @@ const char* htmlPage = R"rawliteral(
 
   <!-- Mantenha todo o JavaScript original aqui -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    let countdownInterval;
-    let isDarkTheme = false;
-    let remainingSeconds = 0;
+<script>
+    // Constantes e variáveis globais
+    const ELEMENTS = {
+        autoModeToggle: document.getElementById('autoModeToggle'),
+        autoSettings: document.getElementById('autoSettings'),
+        currentTime: document.getElementById('currentTime'),
+        currentTemp: document.getElementById('currentTemp'),
+        currentHumidity: document.getElementById('currentHumidity'),
+        currentFeelsLike: document.getElementById('currentFeelsLike'),
+        hours: document.getElementById('hours'),
+        minutes: document.getElementById('minutes'),
+        countdown: document.getElementById('countdown'),
+        progressBar: document.getElementById('progressBar'),
+        status: document.getElementById('status'),
+        autoTemp: document.getElementById('autoTemp'),
+        ventilationTime: document.getElementById('ventilationTime'),
+        standbyTime: document.getElementById('standbyTime'),
+        themeSwitch: document.querySelector('.theme-switch i')
+    };
 
-    // Atualiza o horário atual
-    function updateTime() {
-      fetch('/time')
-        .then(response => response.text())
-        .then(time => {
-          document.getElementById('currentTime').textContent = time;
-        });
-      setTimeout(updateTime, 1000);
-    }
+    const STATE = {
+        countdownInterval: null,
+        isDarkTheme: localStorage.getItem('darkTheme') === 'true',
+        remainingSeconds: 0
+    };
 
-    // Inicia o temporizador
-    function startRelay() {
-      const hours = parseInt(document.getElementById('hours').value) || 0;
-      const minutes = parseInt(document.getElementById('minutes').value) || 5;
-      const totalMinutes = hours * 60 + minutes;
-
-      if (totalMinutes <= 0) {
-        updateStatus("Por favor, insira um tempo válido", "danger");
-        return;
-      }
-
-      fetch(`/start?duration=${totalMinutes}`)
-        .then(response => response.text())
-        .then(message => {
-          updateStatus("Ventilador Ligado", "success");
-          startCountdown(totalMinutes * 60);
-        })
-        .catch(error => {
-          updateStatus("Erro ao ligar ventilador", "danger");
-        });
-    }
-
-    // Para o temporizador
-    function stopRelay() {
-      fetch('/stop')
-        .then(response => response.text())
-        .then(message => {
-          updateStatus("Ventilador Desligado", "warning");
-          clearInterval(countdownInterval);
-          document.getElementById('countdown').textContent = '';
-          document.getElementById('progressBar').style.width = "0%";
-          document.getElementById('progressBar').classList.remove('progress-bar-animated');
-        });
-    }
-
-    // Configura WiFi
-    function configureWiFi() {
-      const statusElement = document.createElement('div');
-      statusElement.id = 'portalStatus';
-      statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
-      document.body.prepend(statusElement);
-
-      fetch('/wificonfig')
-        .then(response => response.text())
-        .then(message => {
-          let countdown = 10;
-          const countdownInterval = setInterval(() => {
-            statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
-            if (countdown < 0) {
-              clearInterval(countdownInterval);
-              window.location.reload();
-            }
-          }, 1000);
-        });
-    }
-
-    // Inicia a contagem regressiva
-    function startCountdown(seconds) {
-      clearInterval(countdownInterval);
-      remainingSeconds = seconds;
-      const totalSeconds = seconds;
-      
-      document.getElementById('progressBar').classList.add('progress-bar-animated');
-      
-      countdownInterval = setInterval(() => {
-        if (remainingSeconds <= 0) {
-          clearInterval(countdownInterval);
-          document.getElementById('countdown').textContent = '';
-          document.getElementById('progressBar').style.width = "0%";
-          document.getElementById('progressBar').classList.remove('progress-bar-animated');
-          updateStatus("Ventilador Desligado", "info");
-        } else {
-          const hours = Math.floor(remainingSeconds / 3600);
-          const minutes = Math.floor((remainingSeconds % 3600) / 60);
-          const secs = remainingSeconds % 60;
-          
-          let countdownText = '';
-          if (hours > 0) countdownText += `${hours}h `;
-          if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
-          countdownText += `${secs}s`;
-          
-          document.getElementById('countdown').textContent = `Desligando em: ${countdownText}`;
-          document.getElementById('progressBar').style.width = `${100 - (remainingSeconds / totalSeconds * 100)}%`;
-          remainingSeconds--;
+    // Funções utilitárias
+    const fetchData = async (url, options = {}) => {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) throw new Error(response.statusText);
+            return options.parseText ? await response.text() : await response.json();
+        } catch (error) {
+            console.error('Fetch error:', error);
+            throw error;
         }
-      }, 1000);
-    }
+    };
 
-    // Atualiza o status
-    function updateStatus(message, type) {
-      const statusElement = document.getElementById('status');
-      statusElement.textContent = message;
-      statusElement.className = `alert alert-${type} mt-3`;
-      
-      // Adiciona ícone conforme o tipo
-      let icon;
-      switch(type) {
-        case 'success': icon = 'fa-check-circle'; break;
-        case 'danger': icon = 'fa-exclamation-circle'; break;
-        case 'warning': icon = 'fa-stop-circle'; break;
-        default: icon = 'fa-info-circle';
-      }
-      statusElement.innerHTML = `<i class="fas ${icon} me-2"></i> ${message}`;
-    }
+    const updateElement = (element, content, className = null) => {
+        if (!element) return;
+        if (content !== undefined && element.textContent !== content) {
+            element.textContent = content;
+        }
+        if (className && element.className !== className) {
+            element.className = className;
+        }
+    };
 
-    // Alterna entre tema claro e escuro
-    function toggleTheme() {
-      isDarkTheme = !isDarkTheme;
-      document.body.classList.toggle('dark-theme', isDarkTheme);
-      const icon = document.querySelector('.theme-switch i');
-      icon.classList.toggle('fa-moon', !isDarkTheme);
-      icon.classList.toggle('fa-sun', isDarkTheme);
-    }
+    // Funções principais
+    const updateTime = () => {
+        fetchData('/time', { parseText: true })
+            .then(time => updateElement(ELEMENTS.currentTime, time))
+            .finally(() => setTimeout(updateTime, 1000));
+    };
 
-    // Verifica status periodicamente
-    function checkStatus() {
-  fetch('/status')
-    .then(response => response.text())
-    .then(status => {
-      if (status.includes("Ligado")) {
-        fetch('/remaining')
-          .then(r => r.json())
-          .then(data => {
-            if (data.remaining > 0 && !countdownInterval) {
-              startCountdown(data.remaining);
+    const controlRelay = async (action, duration = null) => {
+        try {
+            const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
+            const message = await fetchData(url, { parseText: true });
+            
+            updateStatus(action === 'start' ? "Ventilador Ligado" : "Ventilador Desligado", 
+                        action === 'start' ? "success" : "warning");
+            
+            if (action === 'start') {
+                startCountdown(duration * 60);
+            } else {
+                clearCountdown();
             }
-          });
-      }
-      updateStatusUI(status);
-    });
-}
+        } catch (error) {
+            updateStatus(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`, "danger");
+        }
+    };
 
-function updateStatusUI(status) {
-  const statusElement = document.getElementById('status');
-  if (status.includes("Ligado")) {
-    statusElement.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
-    statusElement.className = "alert alert-success mt-3";
-  } else if (status.includes("Desligado")) {
-    statusElement.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
-    statusElement.className = "alert alert-info mt-3";
-  }
-}
+    const startCountdown = (seconds) => {
+        clearInterval(STATE.countdownInterval);
+        STATE.remainingSeconds = seconds;
+        
+        if (ELEMENTS.progressBar) {
+            ELEMENTS.progressBar.classList.add('progress-bar-animated');
+        }
+        
+        STATE.countdownInterval = setInterval(() => {
+            if (STATE.remainingSeconds <= 0) {
+                clearCountdown();
+                updateStatus("Ventilador Desligado", "info");
+                return;
+            }
+
+            const hours = Math.floor(STATE.remainingSeconds / 3600);
+            const minutes = Math.floor((STATE.remainingSeconds % 3600) / 60);
+            const secs = STATE.remainingSeconds % 60;
+            
+            let countdownText = '';
+            if (hours > 0) countdownText += `${hours}h `;
+            if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
+            countdownText += `${secs}s`;
+            
+            updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
+            
+            if (ELEMENTS.progressBar) {
+                ELEMENTS.progressBar.style.width = `${100 - (STATE.remainingSeconds / seconds * 100)}%`;
+            }
+            
+            STATE.remainingSeconds--;
+        }, 1000);
+    };
+
+    const clearCountdown = () => {
+        clearInterval(STATE.countdownInterval);
+        updateElement(ELEMENTS.countdown, '');
+        if (ELEMENTS.progressBar) {
+            ELEMENTS.progressBar.style.width = "0%";
+            ELEMENTS.progressBar.classList.remove('progress-bar-animated');
+        }
+    };
+
+    const updateStatus = (message, type) => {
+        if (!ELEMENTS.status) return;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            danger: 'fa-exclamation-circle',
+            warning: 'fa-stop-circle',
+            info: 'fa-info-circle'
+        };
+        
+        ELEMENTS.status.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'} me-2"></i> ${message}`;
+        ELEMENTS.status.className = `alert alert-${type} mt-3`;
+    };
+
+    const toggleTheme = () => {
+        STATE.isDarkTheme = !STATE.isDarkTheme;
+        document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
+        
+        if (ELEMENTS.themeSwitch) {
+            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
+            ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
+        }
+        
+        localStorage.setItem('darkTheme', STATE.isDarkTheme);
+    };
+
+    const configureWiFi = () => {
+        const statusElement = document.createElement('div');
+        statusElement.id = 'portalStatus';
+        statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
+        document.body.prepend(statusElement);
+
+        fetchData('/wificonfig', { parseText: true })
+            .then(message => {
+                let countdown = 10;
+                const interval = setInterval(() => {
+                    statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
+                    if (countdown < 0) {
+                        clearInterval(interval);
+                        window.location.reload();
+                    }
+                }, 1000);
+            });
+    };
+
+    // Controle Automático
+    const setupAutoMode = () => {
+        if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
+
+        const sendAutoSettings = () => {
+            const settings = {
+                active: ELEMENTS.autoModeToggle.checked,
+                temp: parseFloat(ELEMENTS.autoTemp.value) || 28,
+                ventTime: parseInt(ELEMENTS.ventilationTime.value) || 30,
+                standby: parseInt(ELEMENTS.standbyTime.value) || 10
+            };
+
+            fetchData('/set-auto-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            }).catch(() => {
+                ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
+            });
+        };
+
+        ELEMENTS.autoModeToggle.addEventListener('change', () => {
+            ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
+            sendAutoSettings();
+        });
+
+        // Carrega configurações iniciais
+        fetchData('/get-auto-settings')
+            .then(settings => {
+                if (settings.active) {
+                    ELEMENTS.autoModeToggle.checked = true;
+                    ELEMENTS.autoSettings.style.display = 'block';
+                    ELEMENTS.autoTemp.value = settings.temp || 28;
+                    ELEMENTS.ventilationTime.value = settings.ventTime || 30;
+                    ELEMENTS.standbyTime.value = settings.standby || 10;
+                }
+            })
+            .catch(console.error);
+    };
+
+    // Atualização de dados do sensor
+    const updateSensorData = () => {
+        fetchData('/sensor-data')
+            .then(data => {
+                if (!data.error) {
+                    updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
+                    updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
+                    updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
+                }
+            })
+            .catch(console.error);
+    };
+
+    const updateStatusUI = (status) => {
+        if (!ELEMENTS.status) return;
+        
+        if (status.includes("Ligado")) {
+            ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
+            ELEMENTS.status.className = "alert alert-success mt-3";
+        } else if (status.includes("Desligado")) {
+            ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
+            ELEMENTS.status.className = "alert alert-info mt-3";
+        }
+    };
 
     // Inicialização
     document.addEventListener('DOMContentLoaded', () => {
-      updateTime();
-      setInterval(checkStatus, 5000);
-      
-      // Verifica se já está no tema escuro (salvo no localStorage)
-      if (localStorage.getItem('darkTheme') === 'true') {
-        toggleTheme();
-      }
+        // Configura tema
+        if (STATE.isDarkTheme) {
+            document.body.classList.add('dark-theme');
+            if (ELEMENTS.themeSwitch) {
+                ELEMENTS.themeSwitch.classList.replace('fa-moon', 'fa-sun');
+            }
+        }
+
+        // Configura eventos
+        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
+        
+        // Inicia serviços
+        updateTime();
+        updateSensorData();
+        setInterval(updateSensorData, 60000);
+        setInterval(() => {
+            fetchData('/status', { parseText: true })
+                .then(updateStatusUI)
+                .catch(console.error);
+        }, 5000);
+        
+        // Configura modo automático
+        setupAutoMode();
     });
 
-    // Salva preferência do tema
-    window.addEventListener('beforeunload', () => {
-      localStorage.setItem('darkTheme', isDarkTheme);
-    });
-    // ===== FUNÇÃO PARA SALVAR AS CONFIGURAÇÕES AUTOMÁTICAS =====
-function saveAutoSettings() {
-  // Pega os valores dos inputs
-  const autoStart = document.getElementById('autoStart').value;
-  const autoEnd = document.getElementById('autoEnd').value;
-  const autoTemp = parseFloat(document.getElementById('autoTemp').value);
-  const autoCheckInterval = parseInt(document.getElementById('autoCheckInterval').value);
-
-  // Validações básicas
-  if (!autoStart || !autoEnd || isNaN(autoTemp)) {
-    alert("Preencha todos os campos corretamente!");
-    return;
-  }
-
-  // Monta o objeto de configuração
-  const settings = {
-    startTime: autoStart,
-    endTime: autoEnd,
-    minTemp: autoTemp,
-    checkInterval: autoCheckInterval
-  };
-
-  // Envia para o ESP32 via POST
-  fetch('/set-auto', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(settings)
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      document.getElementById('autoStatus').innerHTML = `
-        <i class="fas fa-check-circle me-2"></i> Automático ativo: ${autoStart} às ${autoEnd} | > ${autoTemp}°C
-      `;
-      document.getElementById('autoStatus').className = 'alert alert-success mt-3 mb-0';
-    } else {
-      alert("Erro ao ativar: " + data.error);
-    }
-  })
-  .catch(error => {
-    alert("Falha na conexão com o ESP32");
-  });
-}
-
-//exibição sensor
-function updateSensorData() {
-  fetch('/sensor-data')
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById("currentTemp").textContent = data.temp.toFixed(1) + "°C";
-      document.getElementById("currentHumidity").textContent = data.humidity.toFixed(1) + "%";
-      document.getElementById("currentFeelsLike").textContent = data.feelsLike.toFixed(1) + "°C";
-    })
-    .catch(error => console.error("Erro ao ler sensor:", error));
-}
-
-// Atualiza a cada 60 segundos (evita sobrecarregar o DHT11)
-setInterval(updateSensorData, 60000);
-
-// Chama imediatamente ao carregar a página
-document.addEventListener("DOMContentLoaded", updateSensorData);
-
-  // Alterna entre modos
-  document.getElementById("operationMode").addEventListener("change", function() {
-    const sensorDiv = document.getElementById("sensorSettings");
-    
-    if (this.value === "sensor") {
-      sensorDiv.style.display = "block";
-    } else {
-      sensorDiv.style.display = "none";
-    }
-  });
-
-  // Envia configurações para o ESP32
-  function applySettings() {
-    const mode = document.getElementById("operationMode").value;
-    const hours = parseInt(document.getElementById("hours").value) || 0;
-    const minutes = parseInt(document.getElementById("minutes").value) || 5;
-    const totalMinutes = hours * 60 + minutes;
-
-    let settings = {
-      mode: mode,
-      duration: totalMinutes
+    // Exporta funções para chamada via HTML
+    window.startRelay = () => {
+        const hours = parseInt(ELEMENTS.hours?.value) || 0;
+        const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
+        const totalMinutes = hours * 60 + minutes;
+        
+        if (totalMinutes <= 0) {
+            updateStatus("Por favor, insira um tempo válido", "danger");
+            return;
+        }
+        
+        controlRelay('start', totalMinutes);
     };
 
-    if (mode === "sensor") {
-      settings.tempThreshold = parseFloat(document.getElementById("autoTemp").value);
-    }
-
-    fetch("/apply-settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings)
-    }).then(response => alert("Configurações salvas!"));
-  }
-  // Controle do toggle automático
-document.getElementById('autoModeToggle').addEventListener('change', function() {
-  fetch('/set-auto-mode', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ active: this.checked })
-  });
-});
-
-// Função de standby (substitui a verificação)
-function checkStandby() {
-  if (!document.getElementById('autoModeToggle').checked) return;
-  
-  fetch('/sensor-data')
-    .then(response => response.json())
-    .then(data => {
-      const temp = data.temp;
-      const feelsLike = data.feelsLike;
-      const threshold = parseFloat(document.getElementById('autoTemp').value);
-      
-      if (feelsLike >= threshold) {
-        startRelay();
-      }
-    });
-}
-
-// Intervalo de standby (em minutos)
-const standbyInterval = document.getElementById('autoCheckInterval').value * 60000;
-setInterval(checkStandby, standbyInterval);
+    window.stopRelay = () => controlRelay('stop');
+    window.configureWiFi = configureWiFi;
+    window.toggleTheme = toggleTheme;
 </script>
 </body>
 </html>
@@ -514,6 +485,14 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   this->ntpManager = ntpManager;
   this->wifiManager = wifiManager;
   this->dhtManager = dhtManager;
+
+  // Configura valores padrão
+  this->autoModeActive = false;
+  this->autoMinTemp = 28.0f;
+  this->autoCheckIntervalMinutes = 10;
+  this->ventilationDuration = 15;    // 15 minutos ligado por padrão
+  this->standbyDuration = 10;       // 10 minutos de standby por padrão
+  this->shouldStartPortal = false;
 
   // Configura rotas básicas
   server.on("/", HTTP_GET, [this]() { this->handleRoot(); });
@@ -527,76 +506,56 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   // Rota para dados do sensor
   server.on("/sensor-data", HTTP_GET, [this]() {
     DynamicJsonDocument doc(200);
-    doc["temp"] = this->dhtManager->readTemperature();
-    doc["humidity"] = this->dhtManager->readHumidity();
+    float temp = this->dhtManager->readTemperature();
+    float humidity = this->dhtManager->readHumidity();
     
-    float feelsLike = doc["temp"].as<float>() + (0.1 * doc["humidity"].as<float>());
-    doc["feelsLike"] = feelsLike;
+    if (!isnan(temp) && !isnan(humidity)) {
+      doc["temp"] = temp;
+      doc["humidity"] = humidity;
+      doc["feelsLike"] = temp + (humidity * 0.1f); // Sensação térmica
+    } else {
+      doc["error"] = "Erro na leitura do sensor";
+    }
 
     String jsonStr;
     serializeJson(doc, jsonStr);
     server.send(200, "application/json", jsonStr);
   });
 
-  // Rota para configurações automáticas antiga (mantida para compatibilidade)
-  server.on("/set-auto", HTTP_POST, [this]() {
+  // Rota para configurações automáticas
+  server.on("/set-auto-settings", HTTP_POST, [this]() {
     if (server.hasArg("plain")) {
-      DynamicJsonDocument doc(256);
-      DeserializationError error = deserializeJson(doc, server.arg("plain"));
-      
-      if (error) {
-        server.send(400, "text/plain", "JSON inválido");
-        return;
-      }
+        DynamicJsonDocument doc(256);
+        deserializeJson(doc, server.arg("plain"));
+        
+        this->autoModeActive = doc["active"];
+        this->autoMinTemp = doc["temp"];
+        this->ventilationDuration = doc["ventTime"];
+        this->standbyDuration = doc["standby"];
 
-      this->autoStartTime = doc["startTime"].as<String>();
-      this->autoEndTime = doc["endTime"].as<String>();
-      this->autoMinTemp = doc["minTemp"];
-      this->autoCheckIntervalMinutes = doc["checkInterval"];
-      this->autoModeActive = true;
+        Serial.printf("Config Auto: %s | Temp: %.1fC | Vent: %dmin | Standby: %dmin\n",
+            autoModeActive ? "ON" : "OFF",
+            autoMinTemp,
+            ventilationDuration,
+            standbyDuration);
 
-      DynamicJsonDocument response(128);
-      response["success"] = true;
-      String responseStr;
-      serializeJson(response, responseStr);
-      server.send(200, "application/json", responseStr);
+        server.send(200, "application/json", "{\"success\":true}");
     } else {
-      server.send(400, "text/plain", "Dados faltando");
+        server.send(400, "text/plain", "Dados faltando");
     }
-  });
+});
 
-  // Nova rota unificada para configurações
-  server.on("/apply-settings", HTTP_POST, [this]() {
-    if (server.hasArg("plain")) {
-      DynamicJsonDocument doc(256);
-      DeserializationError error = deserializeJson(doc, server.arg("plain"));
-      
-      if (error) {
-        server.send(400, "text/plain", "JSON inválido");
-        return;
-      }
-
-      if (doc["mode"] == "timer") {
-        this->relayManager->start(doc["duration"].as<unsigned long>());
-      } else {
-        this->autoMinTemp = doc["tempThreshold"];
-        this->autoCheckIntervalMinutes = doc["duration"];
-        this->autoModeActive = true;
-      }
-
-      server.send(200, "text/plain", "OK");
-    } else {
-      server.send(400, "text/plain", "Dados faltando");
-    }
-  });
-
-server.on("/set-auto-mode", HTTP_POST, [this]() {
-  if (server.hasArg("plain")) {
-    DynamicJsonDocument doc(64);
-    deserializeJson(doc, server.arg("plain"));
-    this->autoModeActive = doc["active"];
-    server.send(200, "text/plain", "OK");
-  }
+// Rota para obter configurações (opcional)
+server.on("/get-auto-settings", HTTP_GET, [this]() {
+    DynamicJsonDocument doc(200);
+    doc["active"] = this->autoModeActive;
+    doc["temp"] = this->autoMinTemp;
+    doc["ventTime"] = this->ventilationDuration;
+    doc["standby"] = this->standbyDuration;
+    
+    String jsonStr;
+    serializeJson(doc, jsonStr);
+    server.send(200, "application/json", jsonStr);
 });
 
   server.begin();
@@ -675,19 +634,42 @@ void WebServerManager::handleRemaining() {
 }
 
 void WebServerManager::verificarCondicoesAutomaticas() {
-  if (!autoModeActive) return;
+    if (!autoModeActive) return;
 
-  static unsigned long lastCheck = 0;
-  unsigned long now = millis();
-  
-  if (now - lastCheck >= (autoCheckIntervalMinutes * 60000)) {
-    float temp = dhtManager->readTemperature();
-    float humidity = dhtManager->readHumidity();
-    float feelsLike = temp + (humidity * 0.1f);
-    
-    if (feelsLike >= autoMinTemp && !relayManager->isActive()) {
-      relayManager->start(autoCheckIntervalMinutes);
+    static unsigned long lastActionTime = 0;
+    static bool isInStandby = false;
+    unsigned long now = millis();
+
+    // Se o ventilador está ligado, verifica se já passou o tempo de ventilação
+    if (relayManager->isActive()) {
+        if (now - relayManager->getStartTime() >= (ventilationDuration * 60000)) {
+            relayManager->stop();
+            isInStandby = true;
+            lastActionTime = now;
+            Serial.println("Ventilador desligado (fim do ciclo)");
+        }
+    } 
+    // Se está em standby, verifica se já passou o tempo
+    else if (isInStandby) {
+        if (now - lastActionTime >= (standbyDuration * 60000)) {
+            isInStandby = false;
+            Serial.println("Standby concluído, verificando temperatura...");
+        }
     }
-    lastCheck = now;
-  }
+    // Se não está em standby, verifica as condições
+    else {
+        float temp = dhtManager->readTemperature();
+        float humidity = dhtManager->readHumidity();
+        
+        if (!isnan(temp) && !isnan(humidity)) {
+            float feelsLike = temp + (humidity * 0.1f);
+            Serial.printf("Temp: %.1fC | Umidade: %.1f%% | Sensação: %.1fC\n", temp, humidity, feelsLike);
+            
+            if (feelsLike >= autoMinTemp) {
+                relayManager->start(ventilationDuration);
+                lastActionTime = now;
+                Serial.println("Ventilador ligado (temperatura alta)");
+            }
+        }
+    }
 }

@@ -26,6 +26,9 @@ private:
   int autoCheckIntervalMinutes;
   bool autoModeActive;
 
+  int ventilationDuration;  // Tempo que o ventilador fica ligado (minutos)
+  int standbyDuration;      // Tempo em standby entre ciclos (minutos)
+
   void handleRoot();
   void handleStart();
   void handleStop();
