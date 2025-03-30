@@ -367,7 +367,7 @@ function saveAutoSettings() {
   const autoCheckInterval = parseInt(document.getElementById('autoCheckInterval').value);
 
   // Validações básicas
-  if (!autoStart || !autoEnd || isNaN(autoTemp) {
+  if (!autoStart || !autoEnd || isNaN(autoTemp)) {
     alert("Preencha todos os campos corretamente!");
     return;
   }
@@ -533,7 +533,7 @@ void WebServerManager::verificarCondicoesAutomaticas() {
         float temperatura = dhtManager->readTemperature();  // Lê do DHTManager
         float umidade = dhtManager->readHumidity();
         
-        if (!isnan(temperatura) {  // Verifica se a leitura é válida
+        if (!isnan(temperatura)) {  // Verifica se a leitura é válida
             float sensacaoTermica = temperatura + (umidade * 0.1);  // Fórmula simplificada
             
             if (sensacaoTermica >= autoMinTemp && !relayManager->isActive()) {

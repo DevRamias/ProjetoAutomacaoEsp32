@@ -2,6 +2,7 @@
 #include "NTPManager.h"
 #include "RelayManager.h"
 #include "WebServerManager.h"
+#include "DHTManager.h"
 #include <ESPmDNS.h>
 
 #define DHTPIN 4      // Pino onde o DHT está conectado (ajuste se necessário)
