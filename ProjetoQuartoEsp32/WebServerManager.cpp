@@ -12,6 +12,7 @@ const char* htmlPage = R"rawliteral(
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
   <style>
+    /* Mantenha todo o CSS original aqui */
     body {
       background-color: #f8f9fa;
       padding: 20px;
@@ -93,97 +94,117 @@ const char* htmlPage = R"rawliteral(
     <div class="card p-4">
       <h1><i class="fas fa-fan"></i> Controle de Ventilador</h1>
       <p class="lead">Horário atual: <span id="currentTime" class="fw-bold">Carregando...</span></p>
-      
-      <div class="time-inputs">
-        <div class="mb-3">
-          <label for="hours" class="form-label">Horas</label>
-          <input type="number" id="hours" class="form-control" min="0" max="24" value="0">
-        </div>
-        <div class="mb-3">
-          <label for="minutes" class="form-label">Minutos</label>
-          <input type="number" id="minutes" class="form-control" min="0" max="59" value="5">
+
+      <!-- Card de Dados do Sensor -->
+      <div class="card p-4 mt-3">
+        <h3><i class="fas fa-thermometer-half"></i> Dados do Ambiente</h3>
+        <div class="row text-center">
+          <div class="col-md-4">
+            <p class="mb-1"><strong>Temperatura</strong></p>
+            <h2 id="currentTemp">--</h2>
+          </div>
+          <div class="col-md-4">
+            <p class="mb-1"><strong>Umidade</strong></p>
+            <h2 id="currentHumidity">--</h2>
+          </div>
+          <div class="col-md-4">
+            <p class="mb-1"><strong>Sensação Térmica</strong></p>
+            <h2 id="currentFeelsLike">--</h2>
+          </div>
         </div>
       </div>
-      
-      <div class="d-flex justify-content-center flex-wrap">
-        <button class="btn btn-success btn-custom" onclick="startRelay()">
-          <i class="fas fa-power-off"></i> Ligar
-        </button>
-        <button class="btn btn-danger btn-custom" onclick="stopRelay()">
-          <i class="fas fa-stop"></i> Desligar
-        </button>
-        <button class="btn btn-info btn-custom" onclick="configureWiFi()">
-          <i class="fas fa-wifi"></i> WiFi
-        </button>
+
+      <!-- Controle Manual -->
+      <div class="card p-4 mt-3">
+        <h3><i class="fas fa-cog"></i> Controle Manual</h3>
+        <div class="time-inputs">
+          <div class="mb-3">
+            <label for="hours" class="form-label">Horas</label>
+            <input type="number" id="hours" class="form-control" min="0" max="24" value="0">
+          </div>
+          <div class="mb-3">
+            <label for="minutes" class="form-label">Minutos</label>
+            <input type="number" id="minutes" class="form-control" min="0" max="59" value="5">
+          </div>
+        </div>
+        
+        <div class="d-flex justify-content-center flex-wrap">
+          <button class="btn btn-success btn-custom" onclick="startRelay()">
+            <i class="fas fa-power-off"></i> Ligar
+          </button>
+          <button class="btn btn-danger btn-custom" onclick="stopRelay()">
+            <i class="fas fa-stop"></i> Desligar
+          </button>
+          <button class="btn btn-info btn-custom" onclick="configureWiFi()">
+            <i class="fas fa-wifi"></i> WiFi
+          </button>
+        </div>
       </div>
-      
+
+      <!-- Controle Automático -->
+      <div class="card p-4 mt-3" style="border-left: 4px solid #4CAF50;">
+        <h3><i class="fas fa-robot"></i> Controle Automático</h3>
+
+        <div class="form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="autoModeToggle" checked>
+          <label class="form-check-label" for="autoModeToggle">Modo Automático Ativo</label>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Das</label>
+            <input type="time" class="form-control" id="autoStart" value="14:00">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Até</label>
+            <input type="time" class="form-control" id="autoEnd" value="22:00">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Ligar acima de</label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
+              <span class="input-group-text">°C</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Standby após desligar</label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="autoCheckInterval" value="10" min="2">
+              <span class="input-group-text">min</span>
+            </div>
+          </div>
+        <button onclick="saveAutoSettings()" class="btn btn-success w-100">
+          <i class="fas fa-power-off me-2"></i> Ativar Automático
+        </button>
+        <div id="autoStatus" class="alert alert-warning mt-3 mb-0">
+          <i class="fas fa-info-circle me-2"></i> Aguardando ativação...
+        </div>
+      </div>
+
+      <!-- Status e Controles -->
       <div id="countdown" class="my-3"></div>
-      
       <div class="progress my-3">
         <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
       </div>
-      
       <div id="status" class="alert alert-info mt-3">
         <i class="fas fa-info-circle"></i> Ventilador Desligado
       </div>
-    </div>
 
-    <!-- ===== NOVO CARD AUTOMÁTICO ===== -->
-<div class="card p-4 mt-3" style="border-left: 4px solid #4CAF50;">
-  <h3><i class="fas fa-robot"></i> Controle Automático</h3>
-  
-  <div class="row g-3 mb-3">
-    <!-- HORÁRIO DE FUNCIONAMENTO -->
-    <div class="col-md-6">
-      <label class="form-label">Das</label>
-      <input type="time" class="form-control" id="autoStart" value="14:00">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Até</label>
-      <input type="time" class="form-control" id="autoEnd" value="22:00">
-    </div>
-    
-    <!-- LIMIAR DE TEMPERATURA + INTERVALO DE VERIFICAÇÃO -->
-    <div class="col-md-6">
-      <label class="form-label">Ligar acima de</label>
-      <div class="input-group">
-        <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
-        <span class="input-group-text">°C</span>
+      <!-- Acesso Permanente -->
+      <div class="access-info alert alert-secondary mt-4">
+        <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
+        <input type="text" class="form-control" value="http://esp32.local" readonly
+               onclick="this.select()" style="text-align: center;">
+        <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
       </div>
     </div>
-    <div class="col-md-6">
-      <label class="form-label">Verificar a cada</label>
-      <div class="input-group">
-        <input type="number" class="form-control" id="autoCheckInterval" value="10" min="1">
-        <span class="input-group-text">min</span>
-      </div>
-    </div>
-  </div>
-  
-  <!-- BOTÃO DE ATIVAÇÃO -->
-  <button onclick="saveAutoSettings()" class="btn btn-success w-100">
-    <i class="fas fa-power-off me-2"></i> Ativar Automático
-  </button>
-  
-  <!-- STATUS -->
-  <div id="autoStatus" class="alert alert-warning mt-3 mb-0">
-    <i class="fas fa-info-circle me-2"></i> Aguardando ativação...
-  </div>
-</div>
 
-    <div class="access-info alert alert-secondary mt-4">
-      <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
-      <input type="text" class="form-control" value="http://esp32.local" readonly
-             onclick="this.select()" style="text-align: center;">
-      <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
-    </div>
-
+    <button class="btn btn-secondary theme-switch rounded-circle" onclick="toggleTheme()">
+      <i class="fas fa-moon"></i>
+    </button>
   </div>
 
-  <button class="btn btn-secondary theme-switch rounded-circle" onclick="toggleTheme()">
-    <i class="fas fa-moon"></i>
-  </button>
-
+  <!-- Mantenha todo o JavaScript original aqui -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let countdownInterval;
@@ -401,7 +422,88 @@ function saveAutoSettings() {
     alert("Falha na conexão com o ESP32");
   });
 }
-  </script>
+
+//exibição sensor
+function updateSensorData() {
+  fetch('/sensor-data')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("currentTemp").textContent = data.temp.toFixed(1) + "°C";
+      document.getElementById("currentHumidity").textContent = data.humidity.toFixed(1) + "%";
+      document.getElementById("currentFeelsLike").textContent = data.feelsLike.toFixed(1) + "°C";
+    })
+    .catch(error => console.error("Erro ao ler sensor:", error));
+}
+
+// Atualiza a cada 60 segundos (evita sobrecarregar o DHT11)
+setInterval(updateSensorData, 60000);
+
+// Chama imediatamente ao carregar a página
+document.addEventListener("DOMContentLoaded", updateSensorData);
+
+  // Alterna entre modos
+  document.getElementById("operationMode").addEventListener("change", function() {
+    const sensorDiv = document.getElementById("sensorSettings");
+    
+    if (this.value === "sensor") {
+      sensorDiv.style.display = "block";
+    } else {
+      sensorDiv.style.display = "none";
+    }
+  });
+
+  // Envia configurações para o ESP32
+  function applySettings() {
+    const mode = document.getElementById("operationMode").value;
+    const hours = parseInt(document.getElementById("hours").value) || 0;
+    const minutes = parseInt(document.getElementById("minutes").value) || 5;
+    const totalMinutes = hours * 60 + minutes;
+
+    let settings = {
+      mode: mode,
+      duration: totalMinutes
+    };
+
+    if (mode === "sensor") {
+      settings.tempThreshold = parseFloat(document.getElementById("autoTemp").value);
+    }
+
+    fetch("/apply-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings)
+    }).then(response => alert("Configurações salvas!"));
+  }
+  // Controle do toggle automático
+document.getElementById('autoModeToggle').addEventListener('change', function() {
+  fetch('/set-auto-mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active: this.checked })
+  });
+});
+
+// Função de standby (substitui a verificação)
+function checkStandby() {
+  if (!document.getElementById('autoModeToggle').checked) return;
+  
+  fetch('/sensor-data')
+    .then(response => response.json())
+    .then(data => {
+      const temp = data.temp;
+      const feelsLike = data.feelsLike;
+      const threshold = parseFloat(document.getElementById('autoTemp').value);
+      
+      if (feelsLike >= threshold) {
+        startRelay();
+      }
+    });
+}
+
+// Intervalo de standby (em minutos)
+const standbyInterval = document.getElementById('autoCheckInterval').value * 60000;
+setInterval(checkStandby, standbyInterval);
+</script>
 </body>
 </html>
 )rawliteral";
@@ -411,18 +513,32 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   this->relayManager = relayManager;
   this->ntpManager = ntpManager;
   this->wifiManager = wifiManager;
-  this->dhtManager = dhtManager;  // Novo: inicializa o DHTManager
+  this->dhtManager = dhtManager;
 
-  // Configura rotas
-  server.on("/", HTTP_GET, [this]() { handleRoot(); });
-  server.on("/start", HTTP_GET, [this]() { handleStart(); });
-  server.on("/stop", HTTP_GET, [this]() { handleStop(); });
-  server.on("/time", HTTP_GET, [this]() { handleTime(); });
-  server.on("/status", HTTP_GET, [this]() { handleStatus(); });
-  server.on("/wificonfig", HTTP_GET, [this]() { handleWiFiConfig(); });
-  server.on("/remaining", HTTP_GET, [this]() { handleRemaining(); });
+  // Configura rotas básicas
+  server.on("/", HTTP_GET, [this]() { this->handleRoot(); });
+  server.on("/start", HTTP_GET, [this]() { this->handleStart(); });
+  server.on("/stop", HTTP_GET, [this]() { this->handleStop(); });
+  server.on("/time", HTTP_GET, [this]() { this->handleTime(); });
+  server.on("/status", HTTP_GET, [this]() { this->handleStatus(); });
+  server.on("/wificonfig", HTTP_GET, [this]() { this->handleWiFiConfig(); });
+  server.on("/remaining", HTTP_GET, [this]() { this->handleRemaining(); });
 
-  // Nova rota para controle automático
+  // Rota para dados do sensor
+  server.on("/sensor-data", HTTP_GET, [this]() {
+    DynamicJsonDocument doc(200);
+    doc["temp"] = this->dhtManager->readTemperature();
+    doc["humidity"] = this->dhtManager->readHumidity();
+    
+    float feelsLike = doc["temp"].as<float>() + (0.1 * doc["humidity"].as<float>());
+    doc["feelsLike"] = feelsLike;
+
+    String jsonStr;
+    serializeJson(doc, jsonStr);
+    server.send(200, "application/json", jsonStr);
+  });
+
+  // Rota para configurações automáticas antiga (mantida para compatibilidade)
   server.on("/set-auto", HTTP_POST, [this]() {
     if (server.hasArg("plain")) {
       DynamicJsonDocument doc(256);
@@ -433,14 +549,12 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
         return;
       }
 
-      // Salva as configurações
       this->autoStartTime = doc["startTime"].as<String>();
       this->autoEndTime = doc["endTime"].as<String>();
       this->autoMinTemp = doc["minTemp"];
       this->autoCheckIntervalMinutes = doc["checkInterval"];
-      this->autoModeActive = true;  // Ativa o modo automático
+      this->autoModeActive = true;
 
-      // Confirmação
       DynamicJsonDocument response(128);
       response["success"] = true;
       String responseStr;
@@ -450,7 +564,41 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
       server.send(400, "text/plain", "Dados faltando");
     }
   });
-  
+
+  // Nova rota unificada para configurações
+  server.on("/apply-settings", HTTP_POST, [this]() {
+    if (server.hasArg("plain")) {
+      DynamicJsonDocument doc(256);
+      DeserializationError error = deserializeJson(doc, server.arg("plain"));
+      
+      if (error) {
+        server.send(400, "text/plain", "JSON inválido");
+        return;
+      }
+
+      if (doc["mode"] == "timer") {
+        this->relayManager->start(doc["duration"].as<unsigned long>());
+      } else {
+        this->autoMinTemp = doc["tempThreshold"];
+        this->autoCheckIntervalMinutes = doc["duration"];
+        this->autoModeActive = true;
+      }
+
+      server.send(200, "text/plain", "OK");
+    } else {
+      server.send(400, "text/plain", "Dados faltando");
+    }
+  });
+
+server.on("/set-auto-mode", HTTP_POST, [this]() {
+  if (server.hasArg("plain")) {
+    DynamicJsonDocument doc(64);
+    deserializeJson(doc, server.arg("plain"));
+    this->autoModeActive = doc["active"];
+    server.send(200, "text/plain", "OK");
+  }
+});
+
   server.begin();
   Serial.println("Servidor web iniciado!");
 }
@@ -527,18 +675,19 @@ void WebServerManager::handleRemaining() {
 }
 
 void WebServerManager::verificarCondicoesAutomaticas() {
-    String horaAtual = ntpManager->getFormattedTime().substring(0, 5); // "HH:MM"
+  if (!autoModeActive) return;
+
+  static unsigned long lastCheck = 0;
+  unsigned long now = millis();
+  
+  if (now - lastCheck >= (autoCheckIntervalMinutes * 60000)) {
+    float temp = dhtManager->readTemperature();
+    float humidity = dhtManager->readHumidity();
+    float feelsLike = temp + (humidity * 0.1f);
     
-    if (horaAtual >= autoStartTime && horaAtual <= autoEndTime) {
-        float temperatura = dhtManager->readTemperature();  // Lê do DHTManager
-        float umidade = dhtManager->readHumidity();
-        
-        if (!isnan(temperatura)) {  // Verifica se a leitura é válida
-            float sensacaoTermica = temperatura + (umidade * 0.1);  // Fórmula simplificada
-            
-            if (sensacaoTermica >= autoMinTemp && !relayManager->isActive()) {
-                relayManager->start(30);  // Liga por 30 minutos
-            }
-        }
+    if (feelsLike >= autoMinTemp && !relayManager->isActive()) {
+      relayManager->start(autoCheckIntervalMinutes);
     }
+    lastCheck = now;
+  }
 }
