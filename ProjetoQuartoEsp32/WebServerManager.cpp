@@ -207,283 +207,310 @@ const char* htmlPage = R"rawliteral(
 <script>
     // Constantes e variáveis globais
     const ELEMENTS = {
-        autoModeToggle: document.getElementById('autoModeToggle'),
-        autoSettings: document.getElementById('autoSettings'),
-        currentTime: document.getElementById('currentTime'),
-        currentTemp: document.getElementById('currentTemp'),
-        currentHumidity: document.getElementById('currentHumidity'),
-        currentFeelsLike: document.getElementById('currentFeelsLike'),
-        hours: document.getElementById('hours'),
-        minutes: document.getElementById('minutes'),
-        countdown: document.getElementById('countdown'),
-        progressBar: document.getElementById('progressBar'),
-        status: document.getElementById('status'),
-        autoTemp: document.getElementById('autoTemp'),
-        ventilationTime: document.getElementById('ventilationTime'),
-        standbyTime: document.getElementById('standbyTime'),
         themeSwitch: document.querySelector('.theme-switch i')
     };
 
     const STATE = {
-        countdownInterval: null,
-        isDarkTheme: localStorage.getItem('darkTheme') === 'true',
-        remainingSeconds: 0
+        isDarkTheme: localStorage.getItem('darkTheme') === 'true'
     };
 
-    // Funções utilitárias
-    const fetchData = async (url, options = {}) => {
-        try {
-            const response = await fetch(url, options);
-            if (!response.ok) throw new Error(response.statusText);
-            return options.parseText ? await response.text() : await response.json();
-        } catch (error) {
-            console.error('Fetch error:', error);
-            throw error;
-        }
-    };
-
-    const updateElement = (element, content, className = null) => {
-        if (!element) return;
-        if (content !== undefined && element.textContent !== content) {
-            element.textContent = content;
-        }
-        if (className && element.className !== className) {
-            element.className = className;
-        }
-    };
-
-    // Funções principais
-    const updateTime = () => {
-        fetchData('/time', { parseText: true })
-            .then(time => updateElement(ELEMENTS.currentTime, time))
-            .finally(() => setTimeout(updateTime, 1000));
-    };
-
-    const controlRelay = async (action, duration = null) => {
-        try {
-            const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
-            const message = await fetchData(url, { parseText: true });
-            
-            updateStatus(action === 'start' ? "Ventilador Ligado" : "Ventilador Desligado", 
-                        action === 'start' ? "success" : "warning");
-            
-            if (action === 'start') {
-                startCountdown(duration * 60);
-            } else {
-                clearCountdown();
-            }
-        } catch (error) {
-            updateStatus(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`, "danger");
-        }
-    };
-
-    const startCountdown = (seconds) => {
-        clearInterval(STATE.countdownInterval);
-        STATE.remainingSeconds = seconds;
-        
-        if (ELEMENTS.progressBar) {
-            ELEMENTS.progressBar.classList.add('progress-bar-animated');
-        }
-        
-        STATE.countdownInterval = setInterval(() => {
-            if (STATE.remainingSeconds <= 0) {
-                clearCountdown();
-                updateStatus("Ventilador Desligado", "info");
-                return;
-            }
-
-            const hours = Math.floor(STATE.remainingSeconds / 3600);
-            const minutes = Math.floor((STATE.remainingSeconds % 3600) / 60);
-            const secs = STATE.remainingSeconds % 60;
-            
-            let countdownText = '';
-            if (hours > 0) countdownText += `${hours}h `;
-            if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
-            countdownText += `${secs}s`;
-            
-            updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
-            
-            if (ELEMENTS.progressBar) {
-                ELEMENTS.progressBar.style.width = `${100 - (STATE.remainingSeconds / seconds * 100)}%`;
-            }
-            
-            STATE.remainingSeconds--;
-        }, 1000);
-    };
-
-    const clearCountdown = () => {
-        clearInterval(STATE.countdownInterval);
-        updateElement(ELEMENTS.countdown, '');
-        if (ELEMENTS.progressBar) {
-            ELEMENTS.progressBar.style.width = "0%";
-            ELEMENTS.progressBar.classList.remove('progress-bar-animated');
-        }
-    };
-
-    const updateStatus = (message, type) => {
-        if (!ELEMENTS.status) return;
-        
-        const icons = {
-            success: 'fa-check-circle',
-            danger: 'fa-exclamation-circle',
-            warning: 'fa-stop-circle',
-            info: 'fa-info-circle'
-        };
-        
-        ELEMENTS.status.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'} me-2"></i> ${message}`;
-        ELEMENTS.status.className = `alert alert-${type} mt-3`;
-    };
-
+    // Função para alternar o tema
     const toggleTheme = () => {
-console.log("Alternando tema...");
+        console.log("Alternando tema...");
         STATE.isDarkTheme = !STATE.isDarkTheme;
         document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
-console.log("Classe dark-theme aplicada:", document.body.classList.contains('dark-theme'));
-        
+        console.log("Classe dark-theme aplicada:", document.body.classList.contains('dark-theme'));
+
         if (ELEMENTS.themeSwitch) {
             ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
             ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
         }
-        
-try {
-        localStorage.setItem('darkTheme', STATE.isDarkTheme);
-console.log("Tema salvo no localStorage:", STATE.isDarkTheme);
-} catch (error) {
+
+        try {
+            localStorage.setItem('darkTheme', STATE.isDarkTheme);
+            console.log("Tema salvo no localStorage:", STATE.isDarkTheme);
+        } catch (error) {
             console.error('Erro ao salvar tema no localStorage:', error);
         }
     };
 
-    const configureWiFi = () => {
-        const statusElement = document.createElement('div');
-        statusElement.id = 'portalStatus';
-        statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
-        document.body.prepend(statusElement);
+    // Inicialização do tema
+    document.addEventListener('DOMContentLoaded', () => {
+        const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+        console.log("Tema inicial:", isDarkTheme);
+        STATE.isDarkTheme = isDarkTheme;
+        document.body.classList.toggle('dark-theme', isDarkTheme);
+        console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
 
-        fetchData('/wificonfig', { parseText: true })
-            .then(message => {
-                let countdown = 10;
-                const interval = setInterval(() => {
-                    statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
-                    if (countdown < 0) {
-                        clearInterval(interval);
-                        window.location.reload();
-                    }
-                }, 1000);
-            });
-    };
+        if (ELEMENTS.themeSwitch) {
+            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
+            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+        }
 
-    // Controle Automático
-    const setupAutoMode = () => {
-        if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
+        // Configura evento de clique para alternar o tema
+        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
 
-        const sendAutoSettings = () => {
-            const settings = {
-                active: ELEMENTS.autoModeToggle.checked,
-                temp: parseFloat(ELEMENTS.autoTemp.value) || 28,
-                ventTime: parseInt(ELEMENTS.ventilationTime.value) || 30,
-                standby: parseInt(ELEMENTS.standbyTime.value) || 10
-            };
-
-            fetchData('/set-auto-settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            }).catch(() => {
-                ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
-            });
+        // Constantes e variáveis globais
+        const ELEMENTS = {
+            autoModeToggle: document.getElementById('autoModeToggle'),
+            autoSettings: document.getElementById('autoSettings'),
+            currentTime: document.getElementById('currentTime'),
+            currentTemp: document.getElementById('currentTemp'),
+            currentHumidity: document.getElementById('currentHumidity'),
+            currentFeelsLike: document.getElementById('currentFeelsLike'),
+            hours: document.getElementById('hours'),
+            minutes: document.getElementById('minutes'),
+            countdown: document.getElementById('countdown'),
+            progressBar: document.getElementById('progressBar'),
+            status: document.getElementById('status'),
+            autoTemp: document.getElementById('autoTemp'),
+            ventilationTime: document.getElementById('ventilationTime'),
+            standbyTime: document.getElementById('standbyTime'),
+            themeSwitch: document.querySelector('.theme-switch i')
         };
 
-        ELEMENTS.autoModeToggle.addEventListener('change', () => {
-            ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
-            sendAutoSettings();
-        });
+        const STATE = {
+            countdownInterval: null,
+            isDarkTheme: localStorage.getItem('darkTheme') === 'true',
+            remainingSeconds: 0
+        };
 
-        // Carrega configurações iniciais
-        fetchData('/get-auto-settings')
-            .then(settings => {
-                if (settings.active) {
-                    ELEMENTS.autoModeToggle.checked = true;
-                    ELEMENTS.autoSettings.style.display = 'block';
-                    ELEMENTS.autoTemp.value = settings.temp || 28;
-                    ELEMENTS.ventilationTime.value = settings.ventTime || 30;
-                    ELEMENTS.standbyTime.value = settings.standby || 10;
+        // Funções utilitárias
+        const fetchData = async (url, options = {}) => {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) throw new Error(response.statusText);
+                return options.parseText ? await response.text() : await response.json();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                throw error;
+            }
+        };
+
+        const updateElement = (element, content, className = null) => {
+            if (!element) return;
+            if (content !== undefined && element.textContent !== content) {
+                element.textContent = content;
+            }
+            if (className && element.className !== className) {
+                element.className = className;
+            }
+        };
+
+        // Funções principais
+        const updateTime = () => {
+            fetchData('/time', { parseText: true })
+                .then(time => updateElement(ELEMENTS.currentTime, time))
+                .finally(() => setTimeout(updateTime, 1000));
+        };
+
+        const controlRelay = async (action, duration = null) => {
+            try {
+                const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
+                const message = await fetchData(url, { parseText: true });
+                
+                updateStatus(action === 'start' ? "Ventilador Ligado" : "Ventilador Desligado", 
+                            action === 'start' ? "success" : "warning");
+                
+                if (action === 'start') {
+                    startCountdown(duration * 60);
+                } else {
+                    clearCountdown();
                 }
-            })
-            .catch(console.error);
-    };
+            } catch (error) {
+                updateStatus(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`, "danger");
+            }
+        };
 
-    // Atualização de dados do sensor
-    const updateSensorData = () => {
-        fetchData('/sensor-data')
-            .then(data => {
-                if (!data.error) {
-                    updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
-                    updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
-                    updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
+        const startCountdown = (seconds) => {
+            clearInterval(STATE.countdownInterval);
+            STATE.remainingSeconds = seconds;
+            
+            if (ELEMENTS.progressBar) {
+                ELEMENTS.progressBar.classList.add('progress-bar-animated');
+            }
+            
+            STATE.countdownInterval = setInterval(() => {
+                if (STATE.remainingSeconds <= 0) {
+                    clearCountdown();
+                    updateStatus("Ventilador Desligado", "info");
+                    return;
                 }
-            })
-            .catch(console.error);
-    };
 
-    const updateStatusUI = (status) => {
-        if (!ELEMENTS.status) return;
-        
-        if (status.includes("Ligado")) {
-            ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
-            ELEMENTS.status.className = "alert alert-success mt-3";
-        } else if (status.includes("Desligado")) {
-            ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
-            ELEMENTS.status.className = "alert alert-info mt-3";
-        }
-    };
+                const hours = Math.floor(STATE.remainingSeconds / 3600);
+                const minutes = Math.floor((STATE.remainingSeconds % 3600) / 60);
+                const secs = STATE.remainingSeconds % 60;
+                
+                let countdownText = '';
+                if (hours > 0) countdownText += `${hours}h `;
+                if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
+                countdownText += `${secs}s`;
+                
+                updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
+                
+                if (ELEMENTS.progressBar) {
+                    ELEMENTS.progressBar.style.width = `${100 - (STATE.remainingSeconds / seconds * 100)}%`;
+                }
+                
+                STATE.remainingSeconds--;
+            }, 1000);
+        };
 
-    // Inicialização corrigida
-    document.addEventListener('DOMContentLoaded', () => {
-                const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
-console.log("Tema inicial:", isDarkTheme);
-        STATE.isDarkTheme = isDarkTheme;
+        const clearCountdown = () => {
+            clearInterval(STATE.countdownInterval);
+            updateElement(ELEMENTS.countdown, '');
+            if (ELEMENTS.progressBar) {
+                ELEMENTS.progressBar.style.width = "0%";
+                ELEMENTS.progressBar.classList.remove('progress-bar-animated');
+            }
+        };
+
+        const updateStatus = (message, type) => {
+            if (!ELEMENTS.status) return;
+            
+            const icons = {
+                success: 'fa-check-circle',
+                danger: 'fa-exclamation-circle',
+                warning: 'fa-stop-circle',
+                info: 'fa-info-circle'
+            };
+            
+            ELEMENTS.status.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'} me-2"></i> ${message}`;
+            ELEMENTS.status.className = `alert alert-${type} mt-3`;
+        };
+
+        const configureWiFi = () => {
+            const statusElement = document.createElement('div');
+            statusElement.id = 'portalStatus';
+            statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
+            document.body.prepend(statusElement);
+
+            fetchData('/wificonfig', { parseText: true })
+                .then(message => {
+                    let countdown = 10;
+                    const interval = setInterval(() => {
+                        statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
+                        if (countdown < 0) {
+                            clearInterval(interval);
+                            window.location.reload();
+                        }
+                    }, 1000);
+                });
+        };
+
+        // Controle Automático
+        const setupAutoMode = () => {
+            if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
+
+            const sendAutoSettings = () => {
+                const settings = {
+                    active: ELEMENTS.autoModeToggle.checked,
+                    temp: parseFloat(ELEMENTS.autoTemp.value) || 28,
+                    ventTime: parseInt(ELEMENTS.ventilationTime.value) || 30,
+                    standby: parseInt(ELEMENTS.standbyTime.value) || 10
+                };
+
+                fetchData('/set-auto-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                }).catch(() => {
+                    ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
+                });
+            };
+
+            ELEMENTS.autoModeToggle.addEventListener('change', () => {
+                ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
+                sendAutoSettings();
+            });
+
+            // Carrega configurações iniciais
+            fetchData('/get-auto-settings')
+                .then(settings => {
+                    if (settings.active) {
+                        ELEMENTS.autoModeToggle.checked = true;
+                        ELEMENTS.autoSettings.style.display = 'block';
+                        ELEMENTS.autoTemp.value = settings.temp || 28;
+                        ELEMENTS.ventilationTime.value = settings.ventTime || 30;
+                        ELEMENTS.standbyTime.value = settings.standby || 10;
+                    }
+                })
+                .catch(console.error);
+        };
+
+        // Atualização de dados do sensor
+        const updateSensorData = () => {
+            fetchData('/sensor-data')
+                .then(data => {
+                    if (!data.error) {
+                        updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
+                        updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
+                        updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
+                    }
+                })
+                .catch(console.error);
+        };
+
+        const updateStatusUI = (status) => {
+            if (!ELEMENTS.status) return;
+            
+            if (status.includes("Ligado")) {
+                ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
+                ELEMENTS.status.className = "alert alert-success mt-3";
+            } else if (status.includes("Desligado")) {
+                ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
+                ELEMENTS.status.className = "alert alert-info mt-3";
+            }
+        };
+
+        // Inicialização corrigida
+        document.addEventListener('DOMContentLoaded', () => {
+            const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+            console.log("Tema inicial:", isDarkTheme);
+            STATE.isDarkTheme = isDarkTheme;
             document.body.classList.toggle('dark-theme', isDarkTheme);
-console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
+            console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
 
             if (ELEMENTS.themeSwitch) {
                 ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
-            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
-                    }
+                ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+            }
 
-        // Configura eventos
-        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
-        
-        // Inicia serviços
-        updateTime();
-        updateSensorData();
-        setInterval(updateSensorData, 60000);
-        setInterval(() => {
-            fetchData('/status', { parseText: true })
-                .then(updateStatusUI)
-                .catch(console.error);
-        }, 5000);
-        
-        // Configura modo automático
-        setupAutoMode();
+            // Configura eventos
+            document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
+            
+            // Inicia serviços
+            updateTime();
+            updateSensorData();
+            setInterval(updateSensorData, 60000);
+            setInterval(() => {
+                fetchData('/status', { parseText: true })
+                    .then(updateStatusUI)
+                    .catch(console.error);
+            }, 5000);
+            
+            // Configura modo automático
+            setupAutoMode();
+        });
+
+        // Exporta funções para chamada via HTML
+        window.startRelay = () => {
+            const hours = parseInt(ELEMENTS.hours?.value) || 0;
+            const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
+            const totalMinutes = hours * 60 + minutes;
+            
+            if (totalMinutes <= 0) {
+                updateStatus("Por favor, insira um tempo válido", "danger");
+                return;
+            }
+            
+            controlRelay('start', totalMinutes);
+        };
+
+        window.stopRelay = () => controlRelay('stop');
+        window.configureWiFi = configureWiFi;
+        window.toggleTheme = toggleTheme;
     });
-
-    // Exporta funções para chamada via HTML
-    window.startRelay = () => {
-        const hours = parseInt(ELEMENTS.hours?.value) || 0;
-        const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
-        const totalMinutes = hours * 60 + minutes;
-        
-        if (totalMinutes <= 0) {
-            updateStatus("Por favor, insira um tempo válido", "danger");
-            return;
-        }
-        
-        controlRelay('start', totalMinutes);
-    };
-
-    window.stopRelay = () => controlRelay('stop');
-    window.configureWiFi = configureWiFi;
-    window.toggleTheme = toggleTheme;
 </script>
 </body>
 </html>
