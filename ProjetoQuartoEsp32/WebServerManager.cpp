@@ -335,15 +335,22 @@ const char* htmlPage = R"rawliteral(
     };
 
     const toggleTheme = () => {
+console.log("Alternando tema...");
         STATE.isDarkTheme = !STATE.isDarkTheme;
         document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
+console.log("Classe dark-theme aplicada:", document.body.classList.contains('dark-theme'));
         
         if (ELEMENTS.themeSwitch) {
             ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
             ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
         }
         
+try {
         localStorage.setItem('darkTheme', STATE.isDarkTheme);
+console.log("Tema salvo no localStorage:", STATE.isDarkTheme);
+} catch (error) {
+            console.error('Erro ao salvar tema no localStorage:', error);
+        }
     };
 
     const configureWiFi = () => {
@@ -430,15 +437,18 @@ const char* htmlPage = R"rawliteral(
         }
     };
 
-    // Inicialização
+    // Inicialização corrigida
     document.addEventListener('DOMContentLoaded', () => {
-        // Configura tema
-        if (STATE.isDarkTheme) {
-            document.body.classList.add('dark-theme');
+                const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+console.log("Tema inicial:", isDarkTheme);
+        STATE.isDarkTheme = isDarkTheme;
+            document.body.classList.toggle('dark-theme', isDarkTheme);
+console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
+
             if (ELEMENTS.themeSwitch) {
-                ELEMENTS.themeSwitch.classList.replace('fa-moon', 'fa-sun');
-            }
-        }
+                ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
+            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+                    }
 
         // Configura eventos
         document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
@@ -510,10 +520,12 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
     float humidity = this->dhtManager->readHumidity();
     
     if (!isnan(temp) && !isnan(humidity)) {
+Serial.printf("Temp: %.1fC | Umidade: %.1f%%\n", temp, humidity);
       doc["temp"] = temp;
       doc["humidity"] = humidity;
       doc["feelsLike"] = temp + (humidity * 0.1f); // Sensação térmica
     } else {
+Serial.println("Erro na leitura do sensor DHT");
       doc["error"] = "Erro na leitura do sensor";
     }
 
@@ -590,6 +602,7 @@ void WebServerManager::handleClient() {
 }
 
 void WebServerManager::handleRoot() {
+Serial.println("Servindo página HTML...");
   server.send(200, "text/html", htmlPage);
 }
 
