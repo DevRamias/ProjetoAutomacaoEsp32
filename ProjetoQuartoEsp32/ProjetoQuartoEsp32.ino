@@ -4,6 +4,7 @@
 #include "WebServerManager.h"
 #include "DHTManager.h"
 #include <ESPmDNS.h>
+#include "LittleFS.h"
 
 #define DHTPIN 4      // Pino onde o DHT está conectado (ajuste se necessário)
 #define DHTTYPE DHT11 // Tipo do sensor (DHT11 ou DHT22)
@@ -16,6 +17,14 @@ WebServerManager webServerManager;
 
 void setup() {
   Serial.begin(115200);
+
+  // Inicializa LittleFS
+  if (!LittleFS.begin(true)) {
+    Serial.println("Erro ao inicializar LittleFS");
+    delay(1000);
+    ESP.restart();
+  }
+  Serial.println("LittleFS inicializado!");
 
   // Configuração WiFi com timeout de 3 minutos
   wifiManager.setConfigPortalTimeout(180);
@@ -43,7 +52,6 @@ void setup() {
     }
   }
 }
-
 
 void loop() {
   webServerManager.handleClient();
