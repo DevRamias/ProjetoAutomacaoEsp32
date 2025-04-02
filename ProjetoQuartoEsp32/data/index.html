@@ -486,35 +486,35 @@ const STATE = {
         }
     };
 
-    // Inicialização corrigida
-    document.addEventListener('DOMContentLoaded', () => {
-        const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
-        console.log("Tema inicial:", isDarkTheme);
-        STATE.isDarkTheme = isDarkTheme;
-        document.body.classList.toggle('dark-theme', isDarkTheme);
-        console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
+    // // Inicialização corrigida
+    // document.addEventListener('DOMContentLoaded', () => {
+    //     const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+    //     console.log("Tema inicial:", isDarkTheme);
+    //     STATE.isDarkTheme = isDarkTheme;
+    //     document.body.classList.toggle('dark-theme', isDarkTheme);
+    //     console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
 
-        if (ELEMENTS.themeSwitch) {
-            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
-            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
-        }
+    //     if (ELEMENTS.themeSwitch) {
+    //         ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
+    //         ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+    //     }
 
-        // Configura eventos
-        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
+    //     // Configura eventos
+    //     document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
         
-        // Inicia serviços
-        updateTime();
-        updateSensorData();
-        setInterval(updateSensorData, 60000);
-        setInterval(() => {
-            fetchData('/status', { parseText: true })
-                .then(updateStatusUI)
-                .catch(console.error);
-        }, 5000);
+    //     // Inicia serviços
+    //     updateTime();
+    //     updateSensorData();
+    //     setInterval(updateSensorData, 60000);
+    //     setInterval(() => {
+    //         fetchData('/status', { parseText: true })
+    //             .then(updateStatusUI)
+    //             .catch(console.error);
+    //     }, 5000);
         
-        // Configura modo automático
-        setupAutoMode();
-    });
+    //     // Configura modo automático
+    //     setupAutoMode();
+    // });
 
     // Exporta funções para chamada via HTML
     window.startRelay = () => {
