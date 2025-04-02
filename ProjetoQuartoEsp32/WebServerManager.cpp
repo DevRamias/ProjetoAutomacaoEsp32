@@ -3,6 +3,44 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+// HTML inicial armazenado em uma constante
+const char* initialHTML = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Web Server</title>
+</head>
+<body>
+    <h1>Bem-vindo ao ESP32!</h1>
+    <p>Este é o HTML inicial carregado diretamente do código.</p>
+    <p>Use a rota <code>/upload-html</code> para atualizar este HTML.</p>
+    <input type="file" id="htmlUpload" accept=".html">
+    <button onclick="uploadHTML()">Upload HTML</button>
+    <script>
+        async function uploadHTML() {
+            const file = document.getElementById("htmlUpload").files[0];
+            if (!file) {
+                alert("Por favor, selecione um arquivo HTML.");
+                return;
+            }
+            const response = await fetch("/upload-html", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "text/plain"
+                },
+                body: await file.text()
+            });
+            if (response.ok) {
+                alert("HTML atualizado com sucesso!");
+            } else {
+                alert("Erro ao atualizar o HTML.");
+            }
+        }
+    </script>
+</body>
+</html>
+)rawliteral";
+
 void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager) {
   // Inicializa ponteiros
   this->relayManager = relayManager;
@@ -84,6 +122,23 @@ server.on("/get-auto-settings", HTTP_GET, [this]() {
     server.send(200, "application/json", jsonStr);
 });
 
+// Rota para upload de HTML
+server.on("/upload-html", HTTP_POST, [this]() {
+    if (server.hasArg("plain")) {
+        File file = LittleFS.open("/index.html", "w");
+        if (!file) {
+            server.send(500, "text/plain", "Erro ao abrir o arquivo para escrita.");
+            return;
+        }
+        file.print(server.arg("plain"));
+        file.close();
+        server.send(200, "text/plain", "HTML atualizado com sucesso!");
+        Serial.println("HTML atualizado com sucesso!");
+    } else {
+        server.send(400, "text/plain", "Nenhum dado recebido.");
+    }
+});
+
   server.begin();
   Serial.println("Servidor web iniciado!");
 }
@@ -116,13 +171,17 @@ void WebServerManager::handleClient() {
 }
 
 void WebServerManager::handleRoot() {
-    File file = LittleFS.open("/index.html", "r");  // Abre o arquivo HTML
-    if (!file) {
-        server.send(500, "text/plain", "Erro: HTML não encontrado!");
-        return;
+    if (LittleFS.exists("/index.html")) {
+        File file = LittleFS.open("/index.html", "r");  // Tenta abrir o arquivo HTML
+        if (file) {
+            server.streamFile(file, "text/html");  // Envia o arquivo
+            file.close();
+            return;
+        }
     }
-    server.streamFile(file, "text/html");  // Envia o arquivo
-    file.close();
+
+    // Se o arquivo não existir ou não puder ser aberto, serve o HTML inicial
+    server.send(200, "text/html", initialHTML);
 }
 
 void WebServerManager::handleStart() {

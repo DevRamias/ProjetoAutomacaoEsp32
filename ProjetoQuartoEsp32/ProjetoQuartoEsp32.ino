@@ -18,13 +18,12 @@ WebServerManager webServerManager;
 void setup() {
   Serial.begin(115200);
 
-  // Inicializa LittleFS
-  if (!LittleFS.begin(true)) {
-    Serial.println("Erro ao inicializar LittleFS");
-    delay(1000);
-    ESP.restart();
+  // Inicializa o sistema de arquivos
+  if (!LittleFS.begin()) {
+    Serial.println("Erro ao montar o sistema de arquivos!");
+    return;
   }
-  Serial.println("LittleFS inicializado!");
+Serial.println("LittleFS inicializado!");
 
   // Configuração WiFi com timeout de 3 minutos
   wifiManager.setConfigPortalTimeout(180);
