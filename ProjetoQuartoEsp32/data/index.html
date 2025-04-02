@@ -225,27 +225,28 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Constantes e variáveis globais
-    const ELEMENTS = {
-        themeSwitch: document.querySelector('.theme-switch i'),
-        autoModeToggle: document.getElementById('autoModeToggle'),
-        autoSettings: document.getElementById('autoSettings'),
-        currentTime: document.getElementById('currentTime'),
-        currentTemp: document.getElementById('currentTemp'),
-        currentHumidity: document.getElementById('currentHumidity'),
-        currentFeelsLike: document.getElementById('currentFeelsLike'),
-        hours: document.getElementById('hours'),
-        minutes: document.getElementById('minutes'),
-        countdown: document.getElementById('countdown'),
-        progressBar: document.getElementById('progressBar'),
-        status: document.getElementById('status'),
-        autoTemp: document.getElementById('autoTemp'),
-        ventilationTime: document.getElementById('ventilationTime'),
-        standbyTime: document.getElementById('standbyTime')
-    };
+    // Única declaração (coloque isso no início do script)
+const ELEMENTS = {
+    // Elementos da primeira parte
+    themeSwitch: document.querySelector('.theme-switch i'),
+    autoModeToggle: document.getElementById('autoModeToggle'),
+    autoSettings: document.getElementById('autoSettings'),
+    currentTime: document.getElementById('currentTime'),
+    
+    // Elementos da segunda parte
+    currentTemp: document.getElementById('currentTemp'),
+    currentHumidity: document.getElementById('currentHumidity'),
+    hours: document.getElementById('hours'),
+    minutes: document.getElementById('minutes')
+    // Adicione TODOS os elementos aqui
+};
 
-    const STATE = {
-        isDarkTheme: localStorage.getItem('darkTheme') === 'true'
-    };
+const STATE = {
+    isDarkTheme: localStorage.getItem('darkTheme') === 'true',
+    countdownInterval: null,
+    remainingSeconds: 0
+    // Todas as propriedades do estado
+};
 
     // Função para alternar o tema
     const toggleTheme = () => {
@@ -296,31 +297,6 @@
         // Configura modo automático
         setupAutoMode();
     });
-
-    // Constantes e variáveis globais
-    const ELEMENTS = {
-        autoModeToggle: document.getElementById('autoModeToggle'),
-        autoSettings: document.getElementById('autoSettings'),
-        currentTime: document.getElementById('currentTime'),
-        currentTemp: document.getElementById('currentTemp'),
-        currentHumidity: document.getElementById('currentHumidity'),
-        currentFeelsLike: document.getElementById('currentFeelsLike'),
-        hours: document.getElementById('hours'),
-        minutes: document.getElementById('minutes'),
-        countdown: document.getElementById('countdown'),
-        progressBar: document.getElementById('progressBar'),
-        status: document.getElementById('status'),
-        autoTemp: document.getElementById('autoTemp'),
-        ventilationTime: document.getElementById('ventilationTime'),
-        standbyTime: document.getElementById('standbyTime'),
-        themeSwitch: document.querySelector('.theme-switch i')
-    };
-
-    const STATE = {
-        countdownInterval: null,
-        isDarkTheme: localStorage.getItem('darkTheme') === 'true',
-        remainingSeconds: 0
-    };
 
     // Funções utilitárias
     const fetchData = async (url, options = {}) => {
