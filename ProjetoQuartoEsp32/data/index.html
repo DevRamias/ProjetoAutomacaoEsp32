@@ -281,22 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
     }
 
-        // Inicia serviços
-        updateTime();
-        updateSensorData();
-        setInterval(updateSensorData, 60000);
-        setInterval(() => {
-            fetchData('/status', { parseText: true })
-                .then(updateStatusUI)
-                .catch(console.error);
-        }, 5000);
     // Configura o evento de clique no botão de alternância de tema
     document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme); // Apenas aqui
 });
 
-        // Configura modo automático
-        setupAutoMode();
-    });
 // Exporta a função para ser usada no HTML
 window.toggleTheme = toggleTheme;
 
