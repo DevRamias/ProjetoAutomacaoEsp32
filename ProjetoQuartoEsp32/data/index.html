@@ -90,7 +90,7 @@
       <h1><i class="fas fa-fan"></i> Controle de Ventilador</h1>
       <p class="lead">Horário atual: <span id="currentTime" class="fw-bold">Carregando...</span></p>
 
-      <!-- Card de Dados do Sensor -->
+      <!-- Dados do Ambiente -->
       <div class="card p-4 mt-3">
         <h3><i class="fas fa-thermometer-half"></i> Dados do Ambiente</h3>
         <div class="row text-center">
@@ -134,6 +134,15 @@
             <i class="fas fa-wifi"></i> WiFi
           </button>
         </div>
+
+        <!-- Contagem Regressiva -->
+        <div class="card p-4 mt-3" id="progressContainer">
+          <h3><i class="fas fa-clock"></i> Contagem Regressiva</h3>
+          <div id="countdown" class="my-3"></div>
+          <div class="progress my-3">
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Controle Automático -->
@@ -174,11 +183,6 @@
   </div>
 </div>
 
-      <!-- Status e Controles -->
-      <div id="countdown" class="my-3"></div>
-      <div class="progress my-3">
-        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-      </div>
       <div id="status" class="alert alert-info mt-3">
         <i class="fas fa-info-circle"></i> Ventilador Desligado
       </div>
@@ -318,6 +322,7 @@ window.toggleTheme = toggleTheme;
             .finally(() => setTimeout(updateTime, 1000)); // Atualiza a cada segundo
     };
 
+    // Atualizar a função de controle do relé para iniciar a contagem regressiva
     const controlRelay = async (action, duration = null) => {
         try {
             const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
@@ -327,9 +332,9 @@ window.toggleTheme = toggleTheme;
                         action === 'start' ? "success" : "warning");
             
             if (action === 'start') {
-                startCountdown(duration * 60);
+                startCountdown(duration * 60); // Inicia a contagem regressiva com o tempo em segundos
             } else {
-                clearCountdown();
+                clearCountdown(); // Limpa a contagem regressiva ao desligar
             }
         } catch (error) {
             updateStatus(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`, "danger");
@@ -340,6 +345,8 @@ window.toggleTheme = toggleTheme;
         clearInterval(STATE.countdownInterval);
         STATE.remainingSeconds = seconds;
         
+        const totalSeconds = seconds; // Salva o total de segundos para calcular a barra de progresso
+
         if (ELEMENTS.progressBar) {
             ELEMENTS.progressBar.classList.add('progress-bar-animated');
         }
@@ -363,7 +370,8 @@ window.toggleTheme = toggleTheme;
             updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
             
             if (ELEMENTS.progressBar) {
-                ELEMENTS.progressBar.style.width = `${100 - (STATE.remainingSeconds / seconds * 100)}%`;
+                const progress = 100 - (STATE.remainingSeconds / totalSeconds * 100);
+                ELEMENTS.progressBar.style.width = `${progress}%`;
             }
             
             STATE.remainingSeconds--;
@@ -413,6 +421,7 @@ window.toggleTheme = toggleTheme;
     };
 
     // Controle Automático
+    // Atualizar a função de configuração do modo automático para iniciar a contagem regressiva
     const setupAutoMode = () => {
         if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
 
@@ -435,6 +444,12 @@ window.toggleTheme = toggleTheme;
 
         ELEMENTS.autoModeToggle.addEventListener('change', () => {
             ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
+            if (ELEMENTS.autoModeToggle.checked) {
+                const ventTime = parseInt(ELEMENTS.ventilationTime.value) || 30;
+                startCountdown(ventTime * 60); // Inicia a contagem regressiva com o tempo configurado
+            } else {
+                clearCountdown(); // Limpa a contagem regressiva ao desativar o modo automático
+            }
             sendAutoSettings();
         });
 
@@ -466,18 +481,18 @@ window.toggleTheme = toggleTheme;
     };
 
     const updateStatusUI = (status) => {
-        if (!ELEMENTS.status) return;
-        
+        const statusElement = document.getElementById('status');
         if (status.includes("Ligado")) {
-            ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
-            ELEMENTS.status.className = "alert alert-success mt-3";
+            statusElement.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
+            statusElement.className = "alert alert-success mt-3";
         } else if (status.includes("Desligado")) {
-            ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
-            ELEMENTS.status.className = "alert alert-info mt-3";
+            statusElement.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
+            statusElement.className = "alert alert-info mt-3";
         }
     };
 
     // Inicialização dos serviços
+    // Atualizar a função de inicialização para garantir que a contagem regressiva funcione
     document.addEventListener('DOMContentLoaded', () => {
         const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
         console.log("Tema inicial:", isDarkTheme);
@@ -505,9 +520,13 @@ window.toggleTheme = toggleTheme;
         
         // Configura modo automático
         setupAutoMode();
+
+        // Buscar o tempo restante a cada 5 segundos
+        setInterval(fetchRemainingTime, 5000);
     });
 
     // Exporta funções para chamada via HTML
+    // Atualizar as funções de controle manual para iniciar a contagem regressiva
     window.startRelay = () => {
         const hours = parseInt(ELEMENTS.hours?.value) || 0;
         const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
@@ -518,14 +537,79 @@ window.toggleTheme = toggleTheme;
             return;
         }
         
-        controlRelay('start', totalMinutes);
+        controlRelay('start', totalMinutes); // Inicia o relé e a contagem regressiva
     };
 
-    window.stopRelay = () => controlRelay('stop');
+    window.stopRelay = () => controlRelay('stop'); // Para o relé e limpa a contagem regressiva
     window.configureWiFi = configureWiFi;
     window.toggleTheme = toggleTheme;
 
     console.log(ELEMENTS.themeSwitch); // Deve exibir o elemento <i> no console
+
+    // Função para buscar o tempo restante do servidor
+    const fetchRemainingTime = () => {
+        fetchData('/remaining')
+            .then(data => {
+                if (data.remaining !== undefined) {
+                    const seconds = data.remaining;
+                    if (seconds > 0) {
+                        startCountdown(seconds); // Atualiza a contagem regressiva com o tempo restante
+                    } else {
+                        clearCountdown(); // Limpa a contagem se o tempo restante for 0
+                    }
+                }
+            })
+            .catch(error => console.error('Erro ao buscar o tempo restante:', error));
+    };
+
+    function checkStatus() {
+        fetch('/status')
+            .then(response => response.text())
+            .then(status => {
+                updateStatusUI(status); // Atualiza o status do ventilador
+
+                if (status.includes("Ligado")) {
+                    fetch('/remaining')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.remaining > 0) {
+                                startCountdown(data.remaining); // Atualiza a contagem regressiva
+                            } else {
+                                clearCountdown(); // Limpa a contagem se o tempo restante for 0
+                            }
+                        })
+                        .catch(error => console.error('Erro ao buscar o tempo restante:', error));
+                } else {
+                    clearCountdown(); // Limpa a contagem se o ventilador estiver desligado
+                }
+            })
+            .catch(error => console.error('Erro ao verificar o status:', error));
+    }
+
+    // Adicione isso na inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+        // ...existing code...
+        setInterval(checkStatus, 5000); // Verifica o status a cada 5 segundos
+    });
+
+    // Função para verificar o status do ventilador
+    function checkStatus() {
+        fetch('/status')
+            .then(response => response.text())
+            .then(status => {
+                updateStatusUI(status);
+
+                if (status.includes("Ligado")) {
+                    fetch('/remaining')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.remaining > 0) {
+                                startCountdown(data.remaining);
+                            }
+                        });
+                }
+            });
+    }
 </script>
 </body>
 </html>
