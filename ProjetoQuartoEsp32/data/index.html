@@ -192,7 +192,7 @@
       </div>
     </div>
 
-    <button class="btn btn-secondary theme-switch rounded-circle" onclick="toggleTheme()">
+    <button class="btn btn-secondary theme-switch rounded-circle">
       <i class="fas fa-moon"></i>
     </button>
   </div>
@@ -248,41 +248,38 @@ const STATE = {
     // Todas as propriedades do estado
 };
 
-    // Função para alternar o tema
-    const toggleTheme = () => {
-        console.log("Alternando tema...");
-        STATE.isDarkTheme = !STATE.isDarkTheme;
-        document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
-        console.log("Classe dark-theme aplicada:", document.body.classList.contains('dark-theme'));
+// Função para alternar o tema
+const toggleTheme = () => {
+    console.log("Alternando tema...");
+    STATE.isDarkTheme = !STATE.isDarkTheme; // Alterna o estado do tema
+    document.body.classList.toggle('dark-theme', STATE.isDarkTheme); // Adiciona ou remove a classe 'dark-theme'
+    console.log("Classe dark-theme aplicada:", document.body.classList.contains('dark-theme'));
 
-        if (ELEMENTS.themeSwitch) {
-            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
-            ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
-        }
+    if (ELEMENTS.themeSwitch) {
+        ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme); // Mostra o ícone de lua no tema claro
+        ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);  // Mostra o ícone de sol no tema escuro
+    }
 
-        try {
-            localStorage.setItem('darkTheme', STATE.isDarkTheme);
-            console.log("Tema salvo no localStorage:", STATE.isDarkTheme);
-        } catch (error) {
-            console.error('Erro ao salvar tema no localStorage:', error);
-        }
-    };
+    try {
+        localStorage.setItem('darkTheme', STATE.isDarkTheme); // Salva o estado do tema no localStorage
+        console.log("Tema salvo no localStorage:", STATE.isDarkTheme);
+    } catch (error) {
+        console.error('Erro ao salvar tema no localStorage:', error);
+    }
+};
 
-    // Inicialização do tema
-    document.addEventListener('DOMContentLoaded', () => {
-        const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
-        console.log("Tema inicial:", isDarkTheme);
-        STATE.isDarkTheme = isDarkTheme; // Use a variável global STATE
-        document.body.classList.toggle('dark-theme', isDarkTheme);
-        console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
+// Inicialização do tema
+document.addEventListener('DOMContentLoaded', () => {
+    const isDarkTheme = localStorage.getItem('darkTheme') === 'true'; // Recupera o estado do tema do localStorage
+    console.log("Tema inicial:", isDarkTheme);
+    STATE.isDarkTheme = isDarkTheme; // Define o estado inicial do tema
+    document.body.classList.toggle('dark-theme', isDarkTheme); // Aplica a classe 'dark-theme' se necessário
+    console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
 
-        if (ELEMENTS.themeSwitch) {
-            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
-            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
-        }
-
-        // Configura eventos
-        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
+    if (ELEMENTS.themeSwitch) {
+        ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme); // Ajusta o ícone inicial
+        ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+    }
 
         // Inicia serviços
         updateTime();
@@ -293,10 +290,15 @@ const STATE = {
                 .then(updateStatusUI)
                 .catch(console.error);
         }, 5000);
+    // Configura o evento de clique no botão de alternância de tema
+    document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme); // Apenas aqui
+});
 
         // Configura modo automático
         setupAutoMode();
     });
+// Exporta a função para ser usada no HTML
+window.toggleTheme = toggleTheme;
 
     // Funções utilitárias
     const fetchData = async (url, options = {}) => {
@@ -324,7 +326,8 @@ const STATE = {
     const updateTime = () => {
         fetchData('/time', { parseText: true })
             .then(time => updateElement(ELEMENTS.currentTime, time))
-            .finally(() => setTimeout(updateTime, 1000));
+            .catch(error => console.error('Erro ao atualizar o horário:', error))
+            .finally(() => setTimeout(updateTime, 1000)); // Atualiza a cada segundo
     };
 
     const controlRelay = async (action, duration = null) => {
@@ -461,7 +464,7 @@ const STATE = {
             .catch(console.error);
     };
 
-    // Atualização de dados do sensor
+    // Função para atualizar os dados do sensor
     const updateSensorData = () => {
         fetchData('/sensor-data')
             .then(data => {
@@ -471,7 +474,7 @@ const STATE = {
                     updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
                 }
             })
-            .catch(console.error);
+            .catch(error => console.error('Erro ao atualizar os dados do sensor:', error));
     };
 
     const updateStatusUI = (status) => {
@@ -486,35 +489,35 @@ const STATE = {
         }
     };
 
-    // // Inicialização corrigida
-    // document.addEventListener('DOMContentLoaded', () => {
-    //     const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
-    //     console.log("Tema inicial:", isDarkTheme);
-    //     STATE.isDarkTheme = isDarkTheme;
-    //     document.body.classList.toggle('dark-theme', isDarkTheme);
-    //     console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
+    // Inicialização dos serviços
+    document.addEventListener('DOMContentLoaded', () => {
+        const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
+        console.log("Tema inicial:", isDarkTheme);
+        STATE.isDarkTheme = isDarkTheme;
+        document.body.classList.toggle('dark-theme', isDarkTheme);
+        console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
 
-    //     if (ELEMENTS.themeSwitch) {
-    //         ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
-    //         ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
-    //     }
+        if (ELEMENTS.themeSwitch) {
+            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
+            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+        }
 
-    //     // Configura eventos
-    //     document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
+        // Configura eventos
+        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
         
-    //     // Inicia serviços
-    //     updateTime();
-    //     updateSensorData();
-    //     setInterval(updateSensorData, 60000);
-    //     setInterval(() => {
-    //         fetchData('/status', { parseText: true })
-    //             .then(updateStatusUI)
-    //             .catch(console.error);
-    //     }, 5000);
+        // Inicia a atualização do horário e dos dados do sensor
+        updateTime();
+        updateSensorData();
+        setInterval(updateSensorData, 60000); // Atualiza os dados do sensor a cada 60 segundos
+        setInterval(() => {
+            fetchData('/status', { parseText: true })
+                .then(updateStatusUI)
+                .catch(console.error);
+        }, 5000);
         
-    //     // Configura modo automático
-    //     setupAutoMode();
-    // });
+        // Configura modo automático
+        setupAutoMode();
+    });
 
     // Exporta funções para chamada via HTML
     window.startRelay = () => {
@@ -533,6 +536,8 @@ const STATE = {
     window.stopRelay = () => controlRelay('stop');
     window.configureWiFi = configureWiFi;
     window.toggleTheme = toggleTheme;
+
+    console.log(ELEMENTS.themeSwitch); // Deve exibir o elemento <i> no console
 </script>
 </body>
 </html>
