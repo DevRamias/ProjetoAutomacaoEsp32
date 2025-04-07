@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,57 +14,70 @@
       padding: 20px;
       transition: all 0.3s;
     }
+
     .container {
       max-width: 600px;
       margin: 0 auto;
       text-align: center;
     }
+
     h1 {
       color: #4CAF50;
       margin-bottom: 20px;
     }
+
     .btn-custom {
       margin: 5px;
       padding: 10px 20px;
       font-size: 1.2em;
     }
+
     .btn-custom i {
       margin-right: 10px;
     }
+
     #countdown {
       font-size: 1.5em;
       margin-top: 20px;
       color: #333;
     }
+
     .dark-theme {
       background-color: #212529;
       color: #f8f9fa;
     }
+
     .dark-theme h1 {
       color: #4CAF50;
     }
+
     .dark-theme .card {
       background-color: #343a40;
       color: #f8f9fa;
     }
+
     .dark-theme .form-control {
       background-color: #495057;
       color: #f8f9fa;
       border-color: #6c757d;
     }
+
     .dark-theme #countdown {
       color: #f8f9fa;
     }
+
     .time-inputs {
       display: flex;
       justify-content: center;
       gap: 15px;
       margin-bottom: 20px;
     }
+
     .time-inputs input {
       width: 80px;
       text-align: center;
     }
+
     #portalStatus {
       position: fixed;
       top: 0;
@@ -76,6 +90,7 @@
       z-index: 1000;
       font-weight: bold;
     }
+
     .theme-switch {
       position: fixed;
       bottom: 20px;
@@ -84,6 +99,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="card p-4">
@@ -122,7 +138,7 @@
             <input type="number" id="minutes" class="form-control" min="0" max="59" value="5">
           </div>
         </div>
-        
+
         <div class="d-flex justify-content-center flex-wrap">
           <button class="btn btn-success btn-custom" onclick="startRelay()">
             <i class="fas fa-power-off"></i> Ligar
@@ -136,480 +152,366 @@
         </div>
 
         <!-- Contagem Regressiva -->
-        <div class="card p-4 mt-3" id="progressContainer">
+        <div id="progressContainer" class="card p-4 mt-3">
           <h3><i class="fas fa-clock"></i> Contagem Regressiva</h3>
           <div id="countdown" class="my-3"></div>
           <div class="progress my-3">
-            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+              style="width: 0%"></div>
           </div>
         </div>
+
+        <!-- Controle Automático -->
+        <div class="card p-4 mt-3">
+          <h3><i class="fas fa-robot"></i> Controle Automático</h3>
+
+          <!-- Toggle ON/OFF -->
+          <div class="form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="autoModeToggle">
+            <label class="form-check-label" for="autoModeToggle">Modo Automático Ativo</label>
+          </div>
+
+          <!-- Configurações (mostrar só quando ativo) -->
+          <div id="autoSettings" style="display:none;">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Ligar acima de</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
+                  <span class="input-group-text">°C</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tempo ligado</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="ventilationTime" value="30" min="1">
+                  <span class="input-group-text">min</span>
+                </div>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label">Standby entre ciclos</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="standbyTime" value="10" min="2">
+                  <span class="input-group-text">min</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="status" class="alert alert-info mt-3">
+          <i class="fas fa-info-circle"></i> Ventilador Desligado
+        </div>
+
+        <!-- Acesso Permanente -->
+        <div class="access-info alert alert-secondary mt-4">
+          <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
+          <input type="text" class="form-control" value="http://esp32.local" readonly onclick="this.select()"
+            style="text-align: center;">
+          <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
+        </div>
       </div>
 
-      <!-- Controle Automático -->
-      <div class="card p-4 mt-3">
-  <h3><i class="fas fa-robot"></i> Controle Automático</h3>
-  
-  <!-- Toggle ON/OFF -->
-  <div class="form-switch mb-3">
-    <input class="form-check-input" type="checkbox" id="autoModeToggle">
-    <label class="form-check-label" for="autoModeToggle">Modo Automático Ativo</label>
-  </div>
-
-  <!-- Configurações (mostrar só quando ativo) -->
-  <div id="autoSettings" style="display:none;">
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label">Ligar acima de</label>
-        <div class="input-group">
-          <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
-          <span class="input-group-text">°C</span>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Tempo ligado</label>
-        <div class="input-group">
-          <input type="number" class="form-control" id="ventilationTime" value="30" min="1">
-          <span class="input-group-text">min</span>
-        </div>
-      </div>
-      <div class="col-md-12">
-        <label class="form-label">Standby entre ciclos</label>
-        <div class="input-group">
-          <input type="number" class="form-control" id="standbyTime" value="10" min="2">
-          <span class="input-group-text">min</span>
-        </div>
-      </div>
+      <button class="btn btn-secondary theme-switch rounded-circle">
+        <i class="fas fa-moon"></i>
+      </button>
     </div>
-  </div>
-</div>
 
-      <div id="status" class="alert alert-info mt-3">
-        <i class="fas fa-info-circle"></i> Ventilador Desligado
-      </div>
-
-      <!-- Acesso Permanente -->
-      <div class="access-info alert alert-secondary mt-4">
-        <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
-        <input type="text" class="form-control" value="http://esp32.local" readonly
-               onclick="this.select()" style="text-align: center;">
-        <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
-      </div>
-    </div>
-
-    <button class="btn btn-secondary theme-switch rounded-circle">
-      <i class="fas fa-moon"></i>
-    </button>
-  </div>
-
-  <input type="file" id="htmlUpload">
-  <button onclick="uploadHTML()">Atualizar HTML</button>
-  <script>
-    async function uploadHTML() {
+    <input type="file" id="htmlUpload">
+    <button onclick="uploadHTML()">Atualizar HTML</button>
+    <script>
+      async function uploadHTML() {
         const file = document.getElementById("htmlUpload").files[0];
         if (!file) {
-            alert("Por favor, selecione um arquivo HTML.");
-            return;
+          alert("Por favor, selecione um arquivo HTML.");
+          return;
         }
         const response = await fetch("/upload-html", {
-            method: "POST",
-            headers: {
-                "Content-Type": "text/plain"
-            },
-            body: await file.text()
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain"
+          },
+          body: await file.text()
         });
         if (response.ok) {
-            alert("HTML atualizado com sucesso!");
+          alert("HTML atualizado com sucesso!");
         } else {
-            alert("Erro ao atualizar o HTML.");
+          alert("Erro ao atualizar o HTML.");
         }
-    }
-  </script>
+      }
+    </script>
 
-  <!-- Mantenha todo o JavaScript original aqui -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    // Constantes e variáveis globais
-    // Única declaração (coloque isso no início do script)
-const ELEMENTS = {
-    // Elementos da primeira parte
-    themeSwitch: document.querySelector('.theme-switch i'),
-    autoModeToggle: document.getElementById('autoModeToggle'),
-    autoSettings: document.getElementById('autoSettings'),
-    currentTime: document.getElementById('currentTime'),
-    
-    // Elementos da segunda parte
-    currentTemp: document.getElementById('currentTemp'),
-    currentHumidity: document.getElementById('currentHumidity'),
-    hours: document.getElementById('hours'),
-    minutes: document.getElementById('minutes')
-    // Adicione TODOS os elementos aqui
-};
+    <!-- Mantenha todo o JavaScript original aqui -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Constantes e variáveis globais
+      const ELEMENTS = {
+        themeSwitch: document.querySelector('.theme-switch i'),
+        autoModeToggle: document.getElementById('autoModeToggle'),
+        autoSettings: document.getElementById('autoSettings'),
+        currentTime: document.getElementById('currentTime'),
+        currentTemp: document.getElementById('currentTemp'),
+        currentHumidity: document.getElementById('currentHumidity'),
+        currentFeelsLike: document.getElementById('currentFeelsLike'),
+        hours: document.getElementById('hours'),
+        minutes: document.getElementById('minutes'),
+        countdown: document.getElementById('countdown'),
+        progressBar: document.getElementById('progressBar'),
+        status: document.getElementById('status')
+      };
 
-const STATE = {
-    isDarkTheme: localStorage.getItem('darkTheme') === 'true',
-    countdownInterval: null,
-    remainingSeconds: 0
-    // Todas as propriedades do estado
-};
+      const STATE = {
+        isDarkTheme: localStorage.getItem('darkTheme') === 'true',
+        countdownInterval: null,
+        remainingSeconds: 0,
+        autoMode: false
+      };
 
-// Função para alternar o tema
-const toggleTheme = () => {
-    console.log("Alternando tema...");
-    STATE.isDarkTheme = !STATE.isDarkTheme; // Alterna o estado do tema
-    document.body.classList.toggle('dark-theme', STATE.isDarkTheme); // Adiciona ou remove a classe 'dark-theme'
-    console.log("Classe dark-theme aplicada:", document.body.classList.contains('dark-theme'));
-
-    if (ELEMENTS.themeSwitch) {
-        ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme); // Mostra o ícone de lua no tema claro
-        ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);  // Mostra o ícone de sol no tema escuro
-    }
-
-    try {
-        localStorage.setItem('darkTheme', STATE.isDarkTheme); // Salva o estado do tema no localStorage
-        console.log("Tema salvo no localStorage:", STATE.isDarkTheme);
-    } catch (error) {
-        console.error('Erro ao salvar tema no localStorage:', error);
-    }
-};
-
-// Inicialização do tema
-document.addEventListener('DOMContentLoaded', () => {
-    const isDarkTheme = localStorage.getItem('darkTheme') === 'true'; // Recupera o estado do tema do localStorage
-    console.log("Tema inicial:", isDarkTheme);
-    STATE.isDarkTheme = isDarkTheme; // Define o estado inicial do tema
-    document.body.classList.toggle('dark-theme', isDarkTheme); // Aplica a classe 'dark-theme' se necessário
-    console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
-
-    if (ELEMENTS.themeSwitch) {
-        ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme); // Ajusta o ícone inicial
-        ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
-    }
-
-    // Configura o evento de clique no botão de alternância de tema
-    document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme); // Apenas aqui
-});
-
-// Exporta a função para ser usada no HTML
-window.toggleTheme = toggleTheme;
-
-    // Funções utilitárias
-    const fetchData = async (url, options = {}) => {
+      // Funções utilitárias
+      const fetchData = async (url, options = {}) => {
         try {
-            const response = await fetch(url, options);
-            if (!response.ok) throw new Error(response.statusText);
-            return options.parseText ? await response.text() : await response.json();
+          const response = await fetch(url, options);
+          if (!response.ok) throw new Error(response.statusText);
+          return options.parseText ? await response.text() : await response.json();
         } catch (error) {
-            console.error('Fetch error:', error);
-            throw error;
+          console.error('Fetch error:', error);
+          throw error;
         }
-    };
+      };
 
-    const updateElement = (element, content, className = null) => {
+      const updateElement = (element, content, className = null) => {
         if (!element) return;
         if (content !== undefined && element.textContent !== content) {
-            element.textContent = content;
+          element.textContent = content;
         }
         if (className && element.className !== className) {
-            element.className = className;
+          element.className = className;
         }
-    };
+      };
 
-    // Funções principais
-    const updateTime = () => {
+      // Funções principais
+      const updateTime = () => {
         fetchData('/time', { parseText: true })
-            .then(time => updateElement(ELEMENTS.currentTime, time))
-            .catch(error => console.error('Erro ao atualizar o horário:', error))
-            .finally(() => setTimeout(updateTime, 1000)); // Atualiza a cada segundo
-    };
+          .then(time => updateElement(ELEMENTS.currentTime, time))
+          .catch(error => console.error('Erro ao atualizar o horário:', error))
+          .finally(() => setTimeout(updateTime, 1000));
+      };
 
-    // Atualizar a função de controle do relé para iniciar a contagem regressiva
-    const controlRelay = async (action, duration = null) => {
-        try {
-            const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
-            const message = await fetchData(url, { parseText: true });
-            
-            updateStatus(action === 'start' ? "Ventilador Ligado" : "Ventilador Desligado", 
-                        action === 'start' ? "success" : "warning");
-            
-            if (action === 'start') {
-                startCountdown(duration * 60); // Inicia a contagem regressiva com o tempo em segundos
-            } else {
-                clearCountdown(); // Limpa a contagem regressiva ao desligar
+      const updateSensorData = () => {
+        fetchData('/sensor-data')
+          .then(data => {
+            if (!data.error) {
+              updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
+              updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
+              updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
             }
-        } catch (error) {
-            updateStatus(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`, "danger");
-        }
-    };
+          })
+          .catch(error => console.error('Erro ao atualizar os dados do sensor:', error));
+      };
 
-    const startCountdown = (seconds) => {
+      const updateStatusUI = (status) => {
+        if (status.includes("Ligado")) {
+          ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
+          ELEMENTS.status.className = "alert alert-success mt-3";
+        } else if (status.includes("Desligado")) {
+          ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
+          ELEMENTS.status.className = "alert alert-info mt-3";
+        }
+      };
+
+      const checkStatus = () => {
+        fetchData('/status', { parseText: true })
+          .then(status => {
+            updateStatusUI(status);
+            if (status.includes("Ligado")) {
+              return fetchData('/remaining');
+            }
+            return { remaining: 0 };
+          })
+          .then(data => {
+            if (data.remaining > 0) {
+              startCountdown(data.remaining);
+            } else {
+              clearCountdown();
+            }
+          })
+          .catch(error => console.error('Erro ao verificar o status:', error));
+      };
+
+      // Controle do Relé e Contagem Regressiva
+      const controlRelay = async (action, duration = null) => {
+        try {
+          const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
+          const message = await fetchData(url, { parseText: true });
+
+          updateStatusUI(action === 'start' ? "Ventilador Ligado" : "Ventilador Desligado");
+
+          if (action === 'start') {
+            startCountdown(duration * 60);
+          } else {
+            clearCountdown();
+          }
+        } catch (error) {
+          updateStatusUI(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`);
+        }
+      };
+
+      const startCountdown = (seconds) => {
         clearInterval(STATE.countdownInterval);
         STATE.remainingSeconds = seconds;
-        
-        const totalSeconds = seconds; // Salva o total de segundos para calcular a barra de progresso
+        const totalSeconds = seconds;
 
         if (ELEMENTS.progressBar) {
-            ELEMENTS.progressBar.classList.add('progress-bar-animated');
+          ELEMENTS.progressBar.classList.add('progress-bar-animated');
         }
-        
+
         STATE.countdownInterval = setInterval(() => {
-            if (STATE.remainingSeconds <= 0) {
-                clearCountdown();
-                updateStatus("Ventilador Desligado", "info");
-                return;
-            }
+          if (STATE.remainingSeconds <= 0) {
+            clearCountdown();
+            updateStatusUI("Ventilador Desligado");
+            return;
+          }
 
-            const hours = Math.floor(STATE.remainingSeconds / 3600);
-            const minutes = Math.floor((STATE.remainingSeconds % 3600) / 60);
-            const secs = STATE.remainingSeconds % 60;
-            
-            let countdownText = '';
-            if (hours > 0) countdownText += `${hours}h `;
-            if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
-            countdownText += `${secs}s`;
-            
-            updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
-            
-            if (ELEMENTS.progressBar) {
-                const progress = 100 - (STATE.remainingSeconds / totalSeconds * 100);
-                ELEMENTS.progressBar.style.width = `${progress}%`;
-            }
-            
-            STATE.remainingSeconds--;
+          const hours = Math.floor(STATE.remainingSeconds / 3600);
+          const minutes = Math.floor((STATE.remainingSeconds % 3600) / 60);
+          const secs = STATE.remainingSeconds % 60;
+
+          let countdownText = '';
+          if (hours > 0) countdownText += `${hours}h `;
+          if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
+          countdownText += `${secs}s`;
+
+          updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
+
+          if (ELEMENTS.progressBar) {
+            const progress = 100 - (STATE.remainingSeconds / totalSeconds * 100);
+            ELEMENTS.progressBar.style.width = `${progress}%`;
+          }
+
+          STATE.remainingSeconds--;
         }, 1000);
-    };
+      };
 
-    const clearCountdown = () => {
+      const clearCountdown = () => {
         clearInterval(STATE.countdownInterval);
         updateElement(ELEMENTS.countdown, '');
         if (ELEMENTS.progressBar) {
-            ELEMENTS.progressBar.style.width = "0%";
-            ELEMENTS.progressBar.classList.remove('progress-bar-animated');
+          ELEMENTS.progressBar.style.width = "0%";
+          ELEMENTS.progressBar.classList.remove('progress-bar-animated');
         }
-    };
+      };
 
-    const updateStatus = (message, type) => {
-        if (!ELEMENTS.status) return;
-        
-        const icons = {
-            success: 'fa-check-circle',
-            danger: 'fa-exclamation-circle',
-            warning: 'fa-stop-circle',
-            info: 'fa-info-circle'
+      // Controle Automático
+      const setupAutoMode = () => {
+        if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
+
+        const sendAutoSettings = () => {
+          const settings = {
+            active: ELEMENTS.autoModeToggle.checked,
+            temp: parseFloat(document.getElementById('autoTemp').value) || 28,
+            ventTime: parseInt(document.getElementById('ventilationTime').value) || 30,
+            standby: parseInt(document.getElementById('standbyTime').value) || 10
+          };
+
+          fetchData('/set-auto-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+          }).catch(() => {
+            ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
+          });
         };
-        
-        ELEMENTS.status.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'} me-2"></i> ${message}`;
-        ELEMENTS.status.className = `alert alert-${type} mt-3`;
-    };
 
-    const configureWiFi = () => {
+        ELEMENTS.autoModeToggle.addEventListener('change', () => {
+          ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
+          sendAutoSettings();
+        });
+
+        // Carrega configurações iniciais
+        fetchData('/get-auto-settings')
+          .then(settings => {
+            if (settings.active) {
+              ELEMENTS.autoModeToggle.checked = true;
+              ELEMENTS.autoSettings.style.display = 'block';
+              document.getElementById('autoTemp').value = settings.temp || 28;
+              document.getElementById('ventilationTime').value = settings.ventTime || 30;
+              document.getElementById('standbyTime').value = settings.standby || 10;
+            }
+          })
+          .catch(console.error);
+      };
+
+      // Tema
+      const toggleTheme = () => {
+        STATE.isDarkTheme = !STATE.isDarkTheme;
+        document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
+
+        if (ELEMENTS.themeSwitch) {
+          ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
+          ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
+        }
+
+        localStorage.setItem('darkTheme', STATE.isDarkTheme);
+      };
+
+      // WiFi
+      const configureWiFi = () => {
         const statusElement = document.createElement('div');
         statusElement.id = 'portalStatus';
         statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
         document.body.prepend(statusElement);
 
         fetchData('/wificonfig', { parseText: true })
-            .then(message => {
-                let countdown = 10;
-                const interval = setInterval(() => {
-                    statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
-                    if (countdown < 0) {
-                        clearInterval(interval);
-                        window.location.reload();
-                    }
-                }, 1000);
-            });
-    };
+          .then(message => {
+            let countdown = 10;
+            const interval = setInterval(() => {
+              statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
+              if (countdown < 0) {
+                clearInterval(interval);
+                window.location.reload();
+              }
+            }, 1000);
+          });
+      };
 
-    // Controle Automático
-    // Atualizar a função de configuração do modo automático para iniciar a contagem regressiva
-    const setupAutoMode = () => {
-        if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
-
-        const sendAutoSettings = () => {
-            const settings = {
-                active: ELEMENTS.autoModeToggle.checked,
-                temp: parseFloat(ELEMENTS.autoTemp.value) || 28,
-                ventTime: parseInt(ELEMENTS.ventilationTime.value) || 30,
-                standby: parseInt(ELEMENTS.standbyTime.value) || 10
-            };
-
-            fetchData('/set-auto-settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            }).catch(() => {
-                ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
-            });
-        };
-
-        ELEMENTS.autoModeToggle.addEventListener('change', () => {
-            ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
-            if (ELEMENTS.autoModeToggle.checked) {
-                const ventTime = parseInt(ELEMENTS.ventilationTime.value) || 30;
-                startCountdown(ventTime * 60); // Inicia a contagem regressiva com o tempo configurado
-            } else {
-                clearCountdown(); // Limpa a contagem regressiva ao desativar o modo automático
-            }
-            sendAutoSettings();
-        });
-
-        // Carrega configurações iniciais
-        fetchData('/get-auto-settings')
-            .then(settings => {
-                if (settings.active) {
-                    ELEMENTS.autoModeToggle.checked = true;
-                    ELEMENTS.autoSettings.style.display = 'block';
-                    ELEMENTS.autoTemp.value = settings.temp || 28;
-                    ELEMENTS.ventilationTime.value = settings.ventTime || 30;
-                    ELEMENTS.standbyTime.value = settings.standby || 10;
-                }
-            })
-            .catch(console.error);
-    };
-
-    // Função para atualizar os dados do sensor
-    const updateSensorData = () => {
-        fetchData('/sensor-data')
-            .then(data => {
-                if (!data.error) {
-                    updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
-                    updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
-                    updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
-                }
-            })
-            .catch(error => console.error('Erro ao atualizar os dados do sensor:', error));
-    };
-
-    const updateStatusUI = (status) => {
-        const statusElement = document.getElementById('status');
-        if (status.includes("Ligado")) {
-            statusElement.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
-            statusElement.className = "alert alert-success mt-3";
-        } else if (status.includes("Desligado")) {
-            statusElement.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
-            statusElement.className = "alert alert-info mt-3";
-        }
-    };
-
-    // Inicialização dos serviços
-    // Atualizar a função de inicialização para garantir que a contagem regressiva funcione
-    document.addEventListener('DOMContentLoaded', () => {
-        const isDarkTheme = localStorage.getItem('darkTheme') === 'true';
-        console.log("Tema inicial:", isDarkTheme);
-        STATE.isDarkTheme = isDarkTheme;
-        document.body.classList.toggle('dark-theme', isDarkTheme);
-        console.log("Classe dark-theme inicial aplicada:", document.body.classList.contains('dark-theme'));
-
+      // Inicialização
+      document.addEventListener('DOMContentLoaded', () => {
+        // Tema
+        document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
         if (ELEMENTS.themeSwitch) {
-            ELEMENTS.themeSwitch.classList.toggle('fa-moon', !isDarkTheme);
-            ELEMENTS.themeSwitch.classList.toggle('fa-sun', isDarkTheme);
+          ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
+          ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
         }
-
-        // Configura eventos
         document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
-        
-        // Inicia a atualização do horário e dos dados do sensor
+
+        // Inicia serviços
         updateTime();
         updateSensorData();
-        setInterval(updateSensorData, 60000); // Atualiza os dados do sensor a cada 60 segundos
-        setInterval(() => {
-            fetchData('/status', { parseText: true })
-                .then(updateStatusUI)
-                .catch(console.error);
-        }, 5000);
-        
-        // Configura modo automático
         setupAutoMode();
 
-        // Buscar o tempo restante a cada 5 segundos
-        setInterval(fetchRemainingTime, 5000);
-    });
+        // Configura atualizações periódicas
+        setInterval(updateSensorData, 60000);
+        setInterval(checkStatus, 5000);
+      });
 
-    // Exporta funções para chamada via HTML
-    // Atualizar as funções de controle manual para iniciar a contagem regressiva
-    window.startRelay = () => {
+      // Funções globais
+      window.startRelay = () => {
         const hours = parseInt(ELEMENTS.hours?.value) || 0;
         const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
         const totalMinutes = hours * 60 + minutes;
-        
+
         if (totalMinutes <= 0) {
-            updateStatus("Por favor, insira um tempo válido", "danger");
-            return;
+          alert("Por favor, insira um tempo válido");
+          return;
         }
-        
-        controlRelay('start', totalMinutes); // Inicia o relé e a contagem regressiva
-    };
 
-    window.stopRelay = () => controlRelay('stop'); // Para o relé e limpa a contagem regressiva
-    window.configureWiFi = configureWiFi;
-    window.toggleTheme = toggleTheme;
+        controlRelay('start', totalMinutes);
+      };
 
-    console.log(ELEMENTS.themeSwitch); // Deve exibir o elemento <i> no console
-
-    // Função para buscar o tempo restante do servidor
-    const fetchRemainingTime = () => {
-        fetchData('/remaining')
-            .then(data => {
-                if (data.remaining !== undefined) {
-                    const seconds = data.remaining;
-                    if (seconds > 0) {
-                        startCountdown(seconds); // Atualiza a contagem regressiva com o tempo restante
-                    } else {
-                        clearCountdown(); // Limpa a contagem se o tempo restante for 0
-                    }
-                }
-            })
-            .catch(error => console.error('Erro ao buscar o tempo restante:', error));
-    };
-
-    function checkStatus() {
-        fetch('/status')
-            .then(response => response.text())
-            .then(status => {
-                updateStatusUI(status); // Atualiza o status do ventilador
-
-                if (status.includes("Ligado")) {
-                    fetch('/remaining')
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.remaining > 0) {
-                                startCountdown(data.remaining); // Atualiza a contagem regressiva
-                            } else {
-                                clearCountdown(); // Limpa a contagem se o tempo restante for 0
-                            }
-                        })
-                        .catch(error => console.error('Erro ao buscar o tempo restante:', error));
-                } else {
-                    clearCountdown(); // Limpa a contagem se o ventilador estiver desligado
-                }
-            })
-            .catch(error => console.error('Erro ao verificar o status:', error));
-    }
-
-    // Adicione isso na inicialização
-    document.addEventListener('DOMContentLoaded', () => {
-        // ...existing code...
-        setInterval(checkStatus, 5000); // Verifica o status a cada 5 segundos
-    });
-
-    // Função para verificar o status do ventilador
-    function checkStatus() {
-        fetch('/status')
-            .then(response => response.text())
-            .then(status => {
-                updateStatusUI(status);
-
-                if (status.includes("Ligado")) {
-                    fetch('/remaining')
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.remaining > 0) {
-                                startCountdown(data.remaining);
-                            }
-                        });
-                }
-            });
-    }
-</script>
+      window.stopRelay = () => controlRelay('stop');
+      window.configureWiFi = configureWiFi;
+      window.toggleTheme = toggleTheme;
+    </script>
 </body>
+
 </html>
