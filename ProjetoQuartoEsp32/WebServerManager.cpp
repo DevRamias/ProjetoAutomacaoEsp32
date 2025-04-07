@@ -64,6 +64,7 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   server.on("/status", HTTP_GET, [this]() { this->handleStatus(); });
   server.on("/wificonfig", HTTP_GET, [this]() { this->handleWiFiConfig(); });
   server.on("/remaining", HTTP_GET, [this]() { this->handleRemaining(); });
+  server.on("/system", HTTP_GET, [this]() { this->handleSystemInfo(); });
 
   // Rota para dados do sensor
   server.on("/sensor-data", HTTP_GET, [this]() {
@@ -144,6 +145,7 @@ server.on("/upload-html", HTTP_POST, [this]() {
 }
 
 void WebServerManager::handleClient() {
+  logMemoryUsage();
   static bool portalRequested = false;
   static unsigned long portalStartTime = 0;
   static unsigned long lastCheck = 0;
@@ -263,4 +265,52 @@ void WebServerManager::verificarCondicoesAutomaticas() {
             }
         }
     }
+}
+
+void WebServerManager::handleSystemInfo() {
+    DynamicJsonDocument doc(256);
+    
+    // Informações de memória
+    doc["memory"]["free"] = ESP.getFreeHeap();
+    doc["memory"]["min_free"] = ESP.getMinFreeHeap();
+    doc["memory"]["max_alloc"] = ESP.getMaxAllocHeap();
+    
+    // Cálculo de fragmentação (protegido contra divisão por zero)
+    uint32_t freeHeap = ESP.getFreeHeap();
+    uint32_t maxBlock = ESP.getMaxAllocHeap();
+    doc["memory"]["fragmentation"] = (freeHeap > 0) ? 100 - (maxBlock * 100 / freeHeap) : 0;
+    
+    // Informações do sistema (usando funções compatíveis)
+    doc["system"]["uptime"] = millis() / 1000;
+    doc["system"]["chip_model"] = ESP.getChipModel();
+    doc["system"]["cpu_freq"] = ESP.getCpuFreqMHz();
+    
+    // Alternativa para reset reason em versões mais novas
+    const char* reset_reason = "";
+    switch (rtc_get_reset_reason(0)) {
+        case 1  : reset_reason = "POWERON"; break;
+        case 3  : reset_reason = "SW_RESET"; break;
+        case 4  : reset_reason = "OWDT"; break;
+        case 5  : reset_reason = "DEEPSLEEP"; break;
+        case 6  : reset_reason = "SDIO"; break;
+        default : reset_reason = "UNKNOWN";
+    }
+    doc["system"]["reset_reason"] = reset_reason;
+    
+    String jsonStr;
+    serializeJson(doc, jsonStr);
+    server.send(200, "application/json", jsonStr);
+}
+
+void WebServerManager::logMemoryUsage() {
+  if (millis() - _lastMemoryLog > 30000) { // A cada 30 segundos
+      Serial.printf(
+          "[MEM] Free: %6d | Min Free: %6d | Max Block: %6d | Frag: %2d%%\n",
+          ESP.getFreeHeap(),
+          ESP.getMinFreeHeap(),
+          ESP.getMaxAllocHeap(),
+          100 - (ESP.getMaxAllocHeap() * 100 / ESP.getFreeHeap())
+      );
+      _lastMemoryLog = millis();
+  }
 }

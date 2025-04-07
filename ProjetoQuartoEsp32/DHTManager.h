@@ -11,10 +11,19 @@ public:
     float readTemperature();
     float readHumidity();
     bool isError();
+    void setHumidityOffset(float offset);
+    unsigned long getLastReadingTime() const;
+    float getLastTemperature() const;
+    float getLastHumidity() const;
 
 private:
     DHT _dht;
-    bool _error = false;
+    float _lastValidTemp;
+    float _lastValidHumidity;
+    unsigned long _lastReadingTime;
+    unsigned long _cacheDuration;
+    bool _error;
+    float _humidityOffset;
 };
 
 #endif
