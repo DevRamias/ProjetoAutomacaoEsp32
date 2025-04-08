@@ -97,6 +97,15 @@
       right: 20px;
       z-index: 1000;
     }
+
+    .progress {
+      height: 24px;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar {
+      transition: width 0.5s ease;
+    }
   </style>
 </head>
 
@@ -214,13 +223,41 @@
 
       <div class="card mt-4">
         <div class="card-header">
-          <h4><i class="fas fa-microchip"></i> System Info</h4>
+          <h4><i class="fas fa-microchip"></i> Informações do Sistema</h4>
         </div>
         <div class="card-body">
-          <div id="systemInfo">Loading...</div>
+          <div id="systemInfo">Carregando...</div>
           <button class="btn btn-sm btn-info mt-2" onclick="refreshSystemInfo()">
-            <i class="fas fa-sync-alt"></i> Refresh
+            <i class="fas fa-sync-alt"></i> Atualizar
           </button>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h4><i class="fas fa-memory"></i> Informações de Armazenamento</h4>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h5>Memória Flash</h5>
+              <p>Total: <span id="flashTotal">--</span></p>
+              <p>Usado: <span id="flashUsed">--</span></p>
+              <p>Livre: <span id="flashFree">--</span></p>
+              <div class="progress">
+                <div id="flashProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h5>Sistema de Arquivos</h5>
+              <p>Total: <span id="fsTotal">--</span></p>
+              <p>Usado: <span id="fsUsed">--</span></p>
+              <p>Livre: <span id="fsFree">--</span></p>
+              <div class="progress">
+                <div id="fsProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -529,10 +566,10 @@
           .then(r => r.json())
           .then(data => {
             let html = `
-                <p><strong>Memory:</strong> ${data.memory.free} bytes free</p>
-                <p><strong>Largest Block:</strong> ${data.memory.max_alloc} bytes</p>
-                <p><strong>Fragmentation:</strong> ${data.memory.fragmentation}%</p>
-                <p><strong>Uptime:</strong> ${Math.floor(data.system.uptime / 3600)}h ${Math.floor((data.system.uptime % 3600) / 60)}m</p>
+                <p><strong>Memória Livre:</strong> ${data.memory.free} bytes</p>
+                <p><strong>Maior Bloco:</strong> ${data.memory.max_alloc} bytes</p>
+                <p><strong>Fragmentação:</strong> ${data.memory.fragmentation}%</p>
+                <p><strong>Tempo de Atividade:</strong> ${Math.floor(data.system.uptime / 3600)}h ${Math.floor((data.system.uptime % 3600) / 60)}m</p>
             `;
             document.getElementById('systemInfo').innerHTML = html;
           });
@@ -541,6 +578,38 @@
       // Atualiza automaticamente a cada 30 segundos
       setInterval(refreshSystemInfo, 30000);
       refreshSystemInfo(); // Chama imediatamente
+
+      function updateStorageInfo() {
+        fetch('/flash-info')
+          .then(response => response.json())
+          .then(data => {
+            // Formata os valores em MB/KB
+            const formatMemory = bytes => {
+              if (bytes > 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+              return (bytes / 1024).toFixed(2) + ' KB';
+            };
+
+            // Atualiza Flash
+            document.getElementById('flashTotal').textContent = formatMemory(data.flash.total);
+            document.getElementById('flashUsed').textContent = formatMemory(data.flash.used);
+            document.getElementById('flashFree').textContent = formatMemory(data.flash.free);
+            const flashPercent = (data.flash.used * 100 / data.flash.total).toFixed(1);
+            document.getElementById('flashProgress').style.width = flashPercent + '%';
+            document.getElementById('flashProgress').textContent = flashPercent + '%';
+
+            // Atualiza Sistema de Arquivos
+            document.getElementById('fsTotal').textContent = formatMemory(data.fs.total);
+            document.getElementById('fsUsed').textContent = formatMemory(data.fs.used);
+            document.getElementById('fsFree').textContent = formatMemory(data.fs.free);
+            const fsPercent = (data.fs.used * 100 / data.fs.total).toFixed(1);
+            document.getElementById('fsProgress').style.width = fsPercent + '%';
+            document.getElementById('fsProgress').textContent = fsPercent + '%';
+          });
+      }
+
+      // Atualiza a cada 30 segundos
+      setInterval(updateStorageInfo, 30000);
+      updateStorageInfo(); // Chama imediatamente
     </script>
 </body>
 
