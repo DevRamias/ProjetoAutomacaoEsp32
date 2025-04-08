@@ -27,12 +27,15 @@ private:
   bool shouldStartPortal;
   
   // Controle automático
-  String autoStartTime, autoEndTime;
+  String autoStartTime;
+  String autoEndTime;
   float autoMinTemp;
   int autoCheckIntervalMinutes;
   bool autoModeActive;
   int ventilationDuration;
   int standbyDuration;
+  
+  bool isWithinActiveHours();
   
   // Monitoramento de memória
   unsigned long _lastMemoryLog;

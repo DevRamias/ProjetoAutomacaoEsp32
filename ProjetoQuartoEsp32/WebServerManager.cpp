@@ -53,10 +53,12 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
 
   // Configura valores padrão
   this->autoModeActive = false;
-  this->autoMinTemp = 28.0f;
+  this->autoMinTemp = 31.0f;
   this->autoCheckIntervalMinutes = 10;
   this->ventilationDuration = 15;    // 15 minutos ligado por padrão
-  this->standbyDuration = 10;       // 10 minutos de standby por padrão
+  this->standbyDuration = 30;       // 30 minutos de standby por padrão
+  this->autoStartTime = "05:00";    // Horário de início padrão
+  this->autoEndTime = "22:00";      // Horário de fim padrão
   this->shouldStartPortal = false;
   this->_lastMemoryLog = 0;
 
@@ -106,8 +108,15 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
       
       this->autoModeActive = doc["active"] | false;
       this->autoMinTemp = doc["temp"] | 31.0f;
-      this->ventilationDuration = doc["ventTime"] | 15;
-      this->standbyDuration = doc["standby"] | 10;
+      this->ventilationDuration = doc["ventTime"] | 15;  // 15 minutos ligado
+      this->standbyDuration = doc["standby"] | 30;      // 30 minutos de standby
+      this->autoStartTime = doc["startTime"] | "05:00"; // Começa às 5h
+      this->autoEndTime = doc["endTime"] | "22:00";     // Termina às 22h
+
+      // Verifica imediatamente se deve ligar quando o modo automático é ativado
+      if (this->autoModeActive) {
+        verificarCondicoesAutomaticas();
+      }
 
       server.send(200, "application/json", "{\"success\":true}");
     } else {
@@ -122,6 +131,8 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
     doc["temp"] = this->autoMinTemp;
     doc["ventTime"] = this->ventilationDuration;
     doc["standby"] = this->standbyDuration;
+    doc["startTime"] = this->autoStartTime;
+    doc["endTime"] = this->autoEndTime;
     
     String jsonStr;
     serializeJson(doc, jsonStr);
@@ -241,8 +252,31 @@ void WebServerManager::handleRemaining() {
   server.send(200, "application/json", jsonStr);
 }
 
+bool WebServerManager::isWithinActiveHours() {
+  String currentTime = ntpManager->getFormattedTime();
+  
+  // Extrai apenas a hora e minuto do horário atual (ignora segundos)
+  String currentHourMin = currentTime.substring(0, 5);
+  
+  // Se horário atual está entre início e fim
+  if (autoStartTime <= autoEndTime) {
+    return currentHourMin >= autoStartTime && currentHourMin <= autoEndTime;
+  } else {
+    // Caso especial quando o período atravessa a meia-noite
+    return currentHourMin >= autoStartTime || currentHourMin <= autoEndTime;
+  }
+}
+
 void WebServerManager::verificarCondicoesAutomaticas() {
   if (!autoModeActive) return;
+
+  // Verifica se está dentro do horário permitido
+  if (!isWithinActiveHours()) {
+    if (relayManager->isActive()) {
+      relayManager->stop(); // Desliga se estiver fora do horário permitido
+    }
+    return;
+  }
 
   static unsigned long lastActionTime = 0;
   static bool isInStandby = false;

@@ -204,6 +204,14 @@
                   <span class="input-group-text">min</span>
                 </div>
               </div>
+              <div class="col-md-6">
+                <label class="form-label">Horário de Início</label>
+                <input type="time" class="form-control" id="autoStartTime" value="05:00">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Horário de Fim</label>
+                <input type="time" class="form-control" id="autoEndTime" value="22:00">
+              </div>
             </div>
           </div>
         </div>
@@ -457,9 +465,11 @@
         const sendAutoSettings = () => {
           const settings = {
             active: ELEMENTS.autoModeToggle.checked,
-            temp: parseFloat(document.getElementById('autoTemp').value) || 28,
-            ventTime: parseInt(document.getElementById('ventilationTime').value) || 30,
-            standby: parseInt(document.getElementById('standbyTime').value) || 10
+            temp: parseFloat(document.getElementById('autoTemp').value) || 31,
+            ventTime: parseInt(document.getElementById('ventilationTime').value) || 15,
+            standby: parseInt(document.getElementById('standbyTime').value) || 30,
+            startTime: document.getElementById('autoStartTime').value || "05:00",
+            endTime: document.getElementById('autoEndTime').value || "22:00"
           };
 
           fetchData('/set-auto-settings', {
@@ -482,9 +492,11 @@
             if (settings.active) {
               ELEMENTS.autoModeToggle.checked = true;
               ELEMENTS.autoSettings.style.display = 'block';
-              document.getElementById('autoTemp').value = settings.temp || 28;
-              document.getElementById('ventilationTime').value = settings.ventTime || 30;
+              document.getElementById('autoTemp').value = settings.temp || 31;
+              document.getElementById('ventilationTime').value = settings.ventTime || 15;
               document.getElementById('standbyTime').value = settings.standby || 10;
+              document.getElementById('autoStartTime').value = settings.startTime || "05:00";
+              document.getElementById('autoEndTime').value = settings.endTime || "22:00";
             }
           })
           .catch(console.error);
