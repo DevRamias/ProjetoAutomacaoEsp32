@@ -53,7 +53,7 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
 
   // Configura valores padrão
   this->autoModeActive = false;
-  this->autoMinTemp = 31.0f;
+  this->autoMinTemp = 28.0f;
   this->autoCheckIntervalMinutes = 10;
   this->ventilationDuration = 15;    // 15 minutos ligado por padrão
   this->standbyDuration = 30;       // 30 minutos de standby por padrão
