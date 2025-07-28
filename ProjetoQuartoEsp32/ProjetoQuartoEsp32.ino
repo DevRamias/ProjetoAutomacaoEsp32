@@ -5,6 +5,10 @@
 #include "DHTManager.h"
 #include <ESPmDNS.h>
 #include "LittleFS.h"
+#include <Arduino_ESP32_OTA.h>
+//#include <ESP32OTA.h>
+#include <ArduinoOTA.h>
+#include "OTAManager.h"
 
 #define DHTPIN 4      // Pino onde o DHT está conectado (ajuste se necessário)
 #define DHTTYPE DHT11 // Tipo do sensor (DHT11 ou DHT22)
@@ -14,6 +18,7 @@ NTPManager ntpManager;
 RelayManager relayManager(5); // Pino do relé
 DHTManager dhtManager(DHTPIN, DHTTYPE);
 WebServerManager webServerManager;
+OTAManager otaManager;
 
 void setup() {
   Serial.begin(115200);
@@ -42,6 +47,9 @@ Serial.println("LittleFS inicializado!");
   relayManager.begin();
   webServerManager.begin(&relayManager, &ntpManager, &wifiManager, &dhtManager);
 
+  // Configura OTA (com hostname e senha opcionais)
+  otaManager.begin("tomada-inteligente", "Teste123");
+
   if (WiFi.status() == WL_CONNECTED) {
     if (!MDNS.begin("esp32")) {
       Serial.println("Erro ao iniciar mDNS!");
@@ -53,6 +61,7 @@ Serial.println("LittleFS inicializado!");
 }
 
 void loop() {
+  otaManager.handle();
   webServerManager.handleClient();
   ntpManager.update();
   relayManager.update();
