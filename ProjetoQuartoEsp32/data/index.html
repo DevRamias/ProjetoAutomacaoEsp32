@@ -148,11 +148,11 @@
         <div class="time-inputs">
           <div class="mb-3">
             <label for="hours" class="form-label">Horas</label>
-            <input type="number" id="hours" class="form-control" min="0" max="24" value="0">
+            <input type="number" id="hours" class="form-control" min="0" max="24" value="0" onfocus="selectInput(this)" oninput="validateInput(this)">
           </div>
           <div class="mb-3">
             <label for="minutes" class="form-label">Minutos</label>
-            <input type="number" id="minutes" class="form-control" min="0" max="59" value="5">
+            <input type="number" id="minutes" class="form-control" min="0" max="59" value="5" onfocus="selectInput(this)" oninput="validateInput(this)">
           </div>
         </div>
 
@@ -697,6 +697,22 @@
 
       // Atualiza os dados imediatamente ao carregar a página
       fetchSensorData();
+
+      function validateInput(input) {
+        const min = parseInt(input.min, 10);
+        const max = parseInt(input.max, 10);
+        const value = parseInt(input.value, 10);
+
+        if (isNaN(value) || value < min) {
+          input.value = min; // Define o valor mínimo se for inválido
+        } else if (value > max) {
+          input.value = max; // Define o valor máximo se exceder o limite
+        }
+      }
+
+      function selectInput(input) {
+        input.select(); // Seleciona todo o conteúdo do campo
+      }
     </script>
 </body>
 
