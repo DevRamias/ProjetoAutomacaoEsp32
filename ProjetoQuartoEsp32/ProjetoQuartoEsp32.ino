@@ -48,13 +48,16 @@ Serial.println("LittleFS inicializado!");
   webServerManager.begin(&relayManager, &ntpManager, &wifiManager, &dhtManager);
 
   // Configura OTA (com hostname e senha opcionais)
-  otaManager.begin("tomada-inteligente", "Teste123");
+  const char* otaHost = "esp32";
+  otaManager.begin(otaHost, "Teste123");
 
   if (WiFi.status() == WL_CONNECTED) {
-    if (!MDNS.begin("esp32")) {
+    if (!MDNS.begin(otaHost)) {
       Serial.println("Erro ao iniciar mDNS!");
     } else {
-      Serial.println("mDNS iniciado! Acesse: http://esp32.local");
+      Serial.print("mDNS iniciado! Acesse: http://");
+      Serial.print(otaHost);
+      Serial.println(".local");
       MDNS.addService("http", "tcp", 80); // Adiciona serviço HTTP
     }
   }
