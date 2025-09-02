@@ -67,5 +67,5 @@ void loop() {
   otaManager.handle();
   webServerManager.handleClient();
   ntpManager.update();
-  relayManager.update();
+  relayManager.update(dhtManager.readTemperature());
 }

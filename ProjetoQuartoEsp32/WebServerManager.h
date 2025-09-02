@@ -1,52 +1,52 @@
-#ifndef WEB_SERVER_MANAGER_H
-#define WEB_SERVER_MANAGER_H
+#ifndef WEBSERVER_MANAGER_H
+#define WEBSERVER_MANAGER_H
 
-#include "DHTManager.h"
-#include <WebServer.h>
+#include <WebServer.h> // A biblioteca correta que você está usando
 #include "RelayManager.h"
 #include "NTPManager.h"
+#include "DHTManager.h"
 #include <WiFiManager.h>
 
 class WebServerManager {
 public:
   void begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager);
   void handleClient();
-  void verificarCondicoesAutomaticas();
-
-  // Novas funções adicionadas
-  void logMemoryUsage();
-  void handleSystemInfo();
-  void handleFlashInfo();
 
 private:
-  WebServer server;
+  WebServer server; // Usando WebServer, não AsyncWebServer
   RelayManager* relayManager;
   NTPManager* ntpManager;
   WiFiManager* wifiManager;
   DHTManager* dhtManager;
-  bool shouldStartPortal;
-  
-  // Controle automático
+
+  // Variáveis de configuração
+  bool autoModeActive;
+  float autoMinTemp;
+  unsigned int ventilationDuration;
+  unsigned int standbyDuration;
   String autoStartTime;
   String autoEndTime;
-  float autoMinTemp;
-  int autoCheckIntervalMinutes;
-  bool autoModeActive;
-  int ventilationDuration;
-  int standbyDuration;
-  
-  bool isWithinActiveHours();
-  
-  // Monitoramento de memória
+  bool shouldStartPortal;
   unsigned long _lastMemoryLog;
 
-  // Handlers
+  // --- Funções Handler (declaradas corretamente para a classe) ---
   void handleRoot();
   void handleStart();
   void handleStop();
   void handleTime();
-  void handleWiFiConfig();
   void handleStatus();
+  void handleWiFiConfig();
   void handleRemaining();
+  void handleSystemInfo();
+  void handleFlashInfo();
+  void handleSensorData();
+  void handleUpload();
+  void handleSetAutoSettings();
+  void handleGetAutoSettings();
+
+  // Funções de suporte
+  bool isWithinActiveHours();
+  void logMemoryUsage();
 };
+
 #endif
