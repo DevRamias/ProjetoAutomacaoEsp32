@@ -45,6 +45,7 @@ Serial.println("LittleFS inicializado!");
 
   ntpManager.begin();
   relayManager.begin();
+  relayManager.setNTPManager(&ntpManager);
   webServerManager.begin(&relayManager, &ntpManager, &wifiManager, &dhtManager);
 
   // Configura OTA (com hostname e senha opcionais)

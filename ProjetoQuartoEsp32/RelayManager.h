@@ -3,46 +3,82 @@
 
 #include <Arduino.h>
 
+// Forward declaration - evita include circular
+class NTPManager;
+
+// NOVO: Estrutura para configurações automáticas
+struct AutoSettings {
+    bool active = false;
+    float minTemp = 30.0f;
+    unsigned int ventTime = 15;
+    unsigned int standbyTime = 30;
+    String startTime = "21:00";
+    String endTime = "5:00";
+};
+
 class RelayManager {
 public:
-  // --- Construtor ---
-  RelayManager(int pin);
+    // --- Construtor ---
+    RelayManager(int pin);
 
-  // --- Métodos Principais ---
-  void begin();
-  void update(float currentTemperature); // Agora recebe a temperatura atual
-  
-  // --- Controle Manual ---
-  void start(unsigned long duration); // Inicia o modo manual por X minutos
-  void stop();                        // Para qualquer operação (manual ou automática)
+    // --- Métodos Principais ---
+    void begin();
+    void update(float currentTemperature);
+    
+    // --- Controle Manual ---
+    void start(unsigned long duration);
+    void stop();
+    
+    // --- Controle Automático ---
+    void startAutoCycle(unsigned long ventMinutes, unsigned long standbyMinutes, float triggerTemp);
+    void stopAutoCycle();
+    
+    // NOVO: Controle de configurações automáticas
+    void setAutoSettings(const AutoSettings& settings);
+    AutoSettings getAutoSettings() const;
+    bool shouldAutoCycleRun() const;
+    
+    // NOVO: Persistência
+    void loadAutoSettings();
+    void saveAutoSettings();
 
-  // --- Controle Automático ---
-  void startAutoCycle(unsigned long ventMinutes, unsigned long standbyMinutes, float triggerTemp);
-  void stopAutoCycle();
+    // ADICIONADO: Configura NTPManager
+    void setNTPManager(NTPManager* ntpManager);
 
-  // --- Métodos de Status ---
-  bool isActive();            // Retorna true se o relé está fisicamente ligado
-  bool isAutoCycleActive();   // Retorna true se o modo automático está habilitado
-  unsigned long getStartTime(); // Para o modo manual
-  unsigned long getDuration();  // Para o modo manual
+    // --- Métodos de Status ---
+    bool isActive();
+    bool isAutoCycleActive();
+    unsigned long getStartTime();
+    unsigned long getDuration();
 
 private:
-  // --- Variáveis de Hardware e Estado Manual ---
-  int relayPin;
-  unsigned long relayStartTime;   // Início do ciclo manual
-  unsigned long relayDuration;    // Duração do ciclo manual
-  bool relayActive;               // Flag para o modo manual
+    // --- Variáveis de Hardware e Estado Manual ---
+    int relayPin;
+    unsigned long relayStartTime;
+    unsigned long relayDuration;
+    bool relayActive;
 
-  // --- Novas Variáveis para o Modo Automático ---
-  bool _autoCycleActive;          // Flag principal do modo automático
-  bool _isVentilating;            // True se está no período de ventilação
-  bool _isInStandby;              // True se está no período de espera (standby)
-  
-  unsigned long _ventilationDurationMs; // Duração da ventilação em ms
-  unsigned long _standbyDurationMs;     // Duração do standby em ms
-  unsigned long _lastStateChangeTime;   // Momento da última mudança de estado (início da ventilação ou do standby)
-  
-  float _triggerTemperature;      // Temperatura que aciona o ciclo
+    // --- Variáveis para o Modo Automático ---
+    bool _autoCycleActive;
+    bool _isVentilating;
+    bool _isInStandby;
+    unsigned long _ventilationDurationMs;
+    unsigned long _standbyDurationMs;
+    unsigned long _lastStateChangeTime;
+    float _triggerTemperature;
+    
+    // NOVO: Armazena configurações automáticas
+    AutoSettings _autoSettings;
+    
+    // ADICIONADO: Ponteiro para NTPManager
+    NTPManager* _ntpManager;
+    
+    // ADICIONADO: Cache para otimização
+    mutable bool _lastTimeCheckResult;
+    mutable unsigned long _lastTimeCheck;
+    
+    // NOVO: Verificação de horários
+    bool isWithinActiveHours() const;
 };
 
 #endif

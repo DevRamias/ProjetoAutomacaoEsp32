@@ -17,16 +17,10 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   this->wifiManager = wifiManager;
   this->dhtManager = dhtManager;
 
-  this->autoModeActive = false;
-  this->autoMinTemp = 28.0f;
-  this->ventilationDuration = 15;
-  this->standbyDuration = 30;
-  this->autoStartTime = "05:00";
-  this->autoEndTime = "22:00";
   this->shouldStartPortal = false;
   this->_lastMemoryLog = 0;
 
-  // --- Configuração de rotas para WebServer.h (sintaxe diferente) ---
+  // Configuracao de rotas
   server.on("/", HTTP_GET, std::bind(&WebServerManager::handleRoot, this));
   server.on("/start", HTTP_GET, std::bind(&WebServerManager::handleStart, this));
   server.on("/stop", HTTP_GET, std::bind(&WebServerManager::handleStop, this));
@@ -68,7 +62,7 @@ void WebServerManager::handleClient() {
   server.handleClient();
 }
 
-// --- Implementação dos Handlers ---
+// --- Implementacao dos Handlers ---
 
 void WebServerManager::handleSetAutoSettings() {
     if (!server.hasArg("plain")) {
@@ -79,30 +73,32 @@ void WebServerManager::handleSetAutoSettings() {
     DynamicJsonDocument doc(256);
     deserializeJson(doc, server.arg("plain"));
     
-    this->autoModeActive = doc["active"] | false;
-    this->autoMinTemp = doc["temp"] | 28.0f;
-    this->ventilationDuration = doc["ventTime"] | 15;
-    this->standbyDuration = doc["standby"] | 30;
-    this->autoStartTime = doc["startTime"] | "05:00";
-    this->autoEndTime = doc["endTime"] | "22:00";
+    // Cria estrutura AutoSettings com dados do JSON
+    AutoSettings settings;
+    settings.active = doc["active"] | false;
+    settings.minTemp = doc["temp"] | 30.0f;
+    settings.ventTime = doc["ventTime"] | 15;
+    settings.standbyTime = doc["standby"] | 30;
+    settings.startTime = doc["startTime"] | "21:00";
+    settings.endTime = doc["endTime"] | "5:00";
 
-    if (this->autoModeActive && isWithinActiveHours()) {
-      relayManager->startAutoCycle(this->ventilationDuration, this->standbyDuration, this->autoMinTemp);
-    } else {
-      relayManager->stopAutoCycle();
-    }
+    // Passa as configuracoes para o RelayManager (ele decide o que fazer)
+    relayManager->setAutoSettings(settings);
 
     server.send(200, "application/json", "{\"success\":true}");
 }
 
 void WebServerManager::handleGetAutoSettings() {
+    // Pega as configuracoes diretamente do RelayManager
+    AutoSettings settings = relayManager->getAutoSettings();
+    
     DynamicJsonDocument doc(256);
-    doc["active"] = relayManager->isAutoCycleActive();
-    doc["temp"] = this->autoMinTemp;
-    doc["ventTime"] = this->ventilationDuration;
-    doc["standby"] = this->standbyDuration;
-    doc["startTime"] = this->autoStartTime;
-    doc["endTime"] = this->autoEndTime;
+    doc["active"] = settings.active;
+    doc["temp"] = settings.minTemp;
+    doc["ventTime"] = settings.ventTime;
+    doc["standby"] = settings.standbyTime;
+    doc["startTime"] = settings.startTime;
+    doc["endTime"] = settings.endTime;
     
     String jsonStr;
     serializeJson(doc, jsonStr);
@@ -126,10 +122,10 @@ void WebServerManager::handleStart() {
       relayManager->start(duration);
       server.send(200, "text/plain", "Ventilador ligado por " + String(duration) + " minutos!");
     } else {
-      server.send(400, "text/plain", "Duração inválida (1-1440 minutos)");
+      server.send(400, "text/plain", "Duracao invalida (1-1440 minutos)");
     }
   } else {
-    server.send(400, "text/plain", "Parâmetro 'duration' faltando");
+    server.send(400, "text/plain", "Parametro 'duration' faltando");
   }
 }
 
@@ -148,7 +144,7 @@ void WebServerManager::handleStatus() {
 
 void WebServerManager::handleWiFiConfig() {
   shouldStartPortal = true;
-  server.send(200, "text/plain", "Portal WiFi será iniciado. Conecte-se ao AP 'ESP32-Config'");
+  server.send(200, "text/plain", "Portal WiFi sera iniciado. Conecte-se ao AP 'ESP32-Config'");
 }
 
 void WebServerManager::handleRemaining() {
@@ -182,7 +178,7 @@ void WebServerManager::handleSensorData() {
     server.send(200, "application/json", jsonStr);
 }
 
-void WebServerManager::handleUpload() {
+  void WebServerManager::handleUpload() {
     if (server.hasArg("plain")) {
       File file = LittleFS.open("/index.html", "w");
       if (!file) {
@@ -246,4 +242,5 @@ void WebServerManager::handleFlashInfo() {
   String jsonStr;
   serializeJson(doc, jsonStr);
   server.send(200, "application/json", jsonStr);
+}
 }

@@ -1,7 +1,7 @@
 #ifndef WEBSERVER_MANAGER_H
 #define WEBSERVER_MANAGER_H
 
-#include <WebServer.h> // A biblioteca correta que você está usando
+#include <WebServer.h>
 #include "RelayManager.h"
 #include "NTPManager.h"
 #include "DHTManager.h"
@@ -13,23 +13,16 @@ public:
   void handleClient();
 
 private:
-  WebServer server; // Usando WebServer, não AsyncWebServer
+  WebServer server;
   RelayManager* relayManager;
   NTPManager* ntpManager;
   WiFiManager* wifiManager;
   DHTManager* dhtManager;
 
-  // Variáveis de configuração
-  bool autoModeActive;
-  float autoMinTemp;
-  unsigned int ventilationDuration;
-  unsigned int standbyDuration;
-  String autoStartTime;
-  String autoEndTime;
   bool shouldStartPortal;
   unsigned long _lastMemoryLog;
 
-  // --- Funções Handler (declaradas corretamente para a classe) ---
+  // Handlers
   void handleRoot();
   void handleStart();
   void handleStop();
@@ -44,8 +37,6 @@ private:
   void handleSetAutoSettings();
   void handleGetAutoSettings();
 
-  // Funções de suporte
-  bool isWithinActiveHours();
   void logMemoryUsage();
 };
 
