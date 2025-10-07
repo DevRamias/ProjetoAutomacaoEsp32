@@ -243,4 +243,3 @@ void WebServerManager::handleFlashInfo() {
   serializeJson(doc, jsonStr);
   server.send(200, "application/json", jsonStr);
 }
-}
