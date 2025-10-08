@@ -168,9 +168,34 @@
           </button>
         </div>
 
-        <!-- Contagem Regressiva -->
+        <!-- Status Unificado Inteligente (no lugar da Contagem Regressiva) -->
         <div id="progressContainer" class="card p-4 mt-3">
-          <h3><i class="fas fa-clock"></i> Contagem Regressiva</h3>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="mb-0"><i class="fas fa-clock"></i> Status do Sistema</h3>
+            <div id="statusIndicator" class="badge bg-secondary">⏱️ MAN</div>
+          </div>
+
+          <!-- Status Principal -->
+          <div id="status" class="alert alert-info mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-info-circle me-2"></i>
+                <span id="statusMain">Ventilador Desligado</span>
+              </div>
+            </div>
+            <div id="statusDetails" class="mt-1 small">
+              <span id="statusMode">Modo manual</span>
+            </div>
+          </div>
+
+          <!-- Contagem Regressiva (só aparece quando ativo) -->
+          <div id="countdownSection" style="display: none;">
+            <div id="countdown" class="my-2"></div>
+            <div class="progress my-2">
+              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">
+              </div>
+            </div>
+            <h3><i class="fas fa-clock"></i> Contagem Regressiva</h3>
           <div id="countdown" class="my-3"></div>
           <div class="progress my-3">
             <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
@@ -224,10 +249,6 @@
           </div>
         </div>
 
-        <div id="status" class="alert alert-info mt-3">
-          <i class="fas fa-info-circle"></i> Ventilador Desligado
-        </div>
-
         <!-- Acesso Permanente -->
         <div class="access-info alert alert-secondary mt-4">
           <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
@@ -277,7 +298,7 @@
         </div>
       </div>
 
-    
+
       <button class="btn btn-secondary theme-switch rounded-circle">
         <i class="fas fa-moon"></i>
       </button>
@@ -387,6 +408,57 @@
           ELEMENTS.status.className = "alert alert-info mt-3";
         }
       };
+
+      // Status Inteligente - Atualiza tudo
+      function updateSmartStatus() {
+        Promise.all([
+          fetchData('/status', { parseText: true }),
+          fetchData('/get-auto-settings'),
+          fetchData('/remaining')
+        ]).then(([relayStatus, autoSettings, remaining]) => {
+
+          const isActive = relayStatus.includes("Ligado");
+          const isAuto = autoSettings.active;
+
+          // 1. Status principal
+          if (isActive) {
+            document.getElementById('status').className = "alert alert-success mt-3";
+            document.getElementById('statusMain').textContent = "Ventilador Ligado";
+          } else {
+            document.getElementById('status').className = "alert alert-info mt-3";
+            document.getElementById('statusMain').textContent = "Ventilador Desligado";
+          }
+
+          // 2. Indicador (badge)
+          const indicator = document.getElementById('statusIndicator');
+          if (isAuto) {
+            indicator.textContent = "🤖 AUTO";
+            indicator.className = "badge bg-primary";
+          } else {
+            indicator.textContent = "⏱️ MAN";
+            indicator.className = "badge bg-secondary";
+          }
+
+          // 3. Detalhes
+          const modeElement = document.getElementById('statusMode');
+
+          if (isAuto) {
+            if (isActive) {
+              modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | 💨 ${autoSettings.ventTime}min ventilação`;
+            } else {
+              modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | ⏸️ ${autoSettings.standbyTime}min standby`;
+            }
+          } else {
+            if (isActive && remaining.remaining > 0) {
+              const mins = Math.ceil(remaining.remaining / 60);
+              modeElement.innerHTML = `⏱️ Manual | ⏰ Desliga em ${mins}min`;
+            } else {
+              modeElement.innerHTML = `⏱️ Manual`;
+            }
+          }
+
+        }).catch(console.error);
+      }
 
       const checkStatus = () => {
         fetchData('/status', { parseText: true })
@@ -564,7 +636,7 @@
 
         // Configura atualizações periódicas
         setInterval(updateSensorData, 60000);
-        setInterval(checkStatus, 5000);
+        setInterval(updateSmartStatus, 3000); // Status a cada 3 segundos
       });
 
       // Funções globais
