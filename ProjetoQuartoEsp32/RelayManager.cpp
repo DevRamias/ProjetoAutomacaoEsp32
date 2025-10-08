@@ -42,13 +42,18 @@ void RelayManager::begin() {
 }
 
 void RelayManager::update(float currentTemperature) {
-  // 1. Lógica do modo MANUAL
+  // Reativa automático se necessário
+  if (_autoSettings.active && shouldAutoCycleRun() && !_autoCycleActive) {
+    startAutoCycle(_autoSettings.ventTime, _autoSettings.standbyTime, _autoSettings.minTemp);
+    Serial.println("[AUTO] Reativado automaticamente!");
+  }
+  // Lógica do modo MANUAL
   if (relayActive && !_autoCycleActive && (millis() - relayStartTime >= relayDuration)) {
     stop();
     Serial.println("[MANUAL] Ventilador desligado automaticamente por tempo.");
   }
 
-  // 2. Lógica do modo AUTOMÁTICO
+  // Lógica do modo AUTOMÁTICO
   if (!_autoCycleActive) {
     return;
   }

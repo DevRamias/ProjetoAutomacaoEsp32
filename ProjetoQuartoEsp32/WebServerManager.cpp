@@ -193,15 +193,6 @@ void WebServerManager::handleSensorData() {
     }
 }
 
-bool WebServerManager::isWithinActiveHours() {
-  String currentTime = ntpManager->getFormattedTime().substring(0, 5);
-  if (autoStartTime <= autoEndTime) {
-    return currentTime >= autoStartTime && currentTime <= autoEndTime;
-  } else {
-    return currentTime >= autoStartTime || currentTime <= autoEndTime;
-  }
-}
-
 void WebServerManager::handleSystemInfo() {
     DynamicJsonDocument doc(256);
     uint32_t freeHeap = ESP.getFreeHeap();
