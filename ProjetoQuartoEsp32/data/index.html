@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Ventilador</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <style>
+    /* Mantenha todo o CSS original aqui */
+    body {
+      background-color: #f8f9fa;
+      padding: 20px;
+      transition: all 0.3s;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    h1 {
+      color: #4CAF50;
+      margin-bottom: 20px;
+    }
+
+    .btn-custom {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 1.2em;
+    }
+
+    .btn-custom i {
+      margin-right: 10px;
+    }
+
+    #countdown {
+      font-size: 1.5em;
+      margin-top: 20px;
+      color: #333;
+    }
+
+    .dark-theme {
+      background-color: #212529;
+      color: #f8f9fa;
+    }
+
+    .dark-theme h1 {
+      color: #4CAF50;
+    }
+
+    .dark-theme .card {
+      background-color: #343a40;
+      color: #f8f9fa;
+    }
+
+    .dark-theme .form-control {
+      background-color: #495057;
+      color: #f8f9fa;
+      border-color: #6c757d;
+    }
+
+    .dark-theme #countdown {
+      color: #f8f9fa;
+    }
+
+    .time-inputs {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .time-inputs input {
+      width: 80px;
+      text-align: center;
+    }
+
+    #portalStatus {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px;
+      background-color: #ffc107;
+      color: #212529;
+      text-align: center;
+      z-index: 1000;
+      font-weight: bold;
+    }
+
+    .theme-switch {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    .progress {
+      height: 24px;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar {
+      transition: width 0.5s ease;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card p-4">
+      <h1><i class="fas fa-fan"></i> Controle de Ventilador</h1>
+      <p class="lead">Horário atual: <span id="currentTime" class="fw-bold">Carregando...</span></p>
+
+      <!-- Dados do Ambiente -->
+      <div class="card p-4 mt-3">
+        <div class="card-header">
+          <h3><i class="fas fa-thermometer-half"></i> Dados do Ambiente</h3>
+          <button id="toggleAdjustMode" class="btn btn-sm btn-warning float-end">
+            <i class="fas fa-tools"></i> Modo de Ajuste
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-md-4">
+              <p class="mb-1"><strong>Temperatura</strong></p>
+              <h2 id="currentTemp">--</h2>
+            </div>
+            <div class="col-md-4">
+              <p class="mb-1"><strong>Umidade</strong></p>
+              <h2 id="currentHumidity">--</h2>
+            </div>
+            <div class="col-md-4">
+              <p class="mb-1"><strong>Sensação Térmica</strong></p>
+              <h2 id="currentFeelsLike">--</h2>
+            </div>
+          </div>
+          <p id="sensorStatus" class="mt-3 text-center text-muted">Carregando dados do sensor...</p>
+        </div>
+      </div>
+
+      <!-- Controle Manual -->
+      <div class="card p-4 mt-3">
+        <h3><i class="fas fa-cog"></i> Controle Manual</h3>
+        <div class="time-inputs">
+          <div class="mb-3">
+            <label for="hours" class="form-label">Horas</label>
+            <input type="number" id="hours" class="form-control" min="0" max="24" value="0" onfocus="selectInput(this)" oninput="validateInput(this)">
+          </div>
+          <div class="mb-3">
+            <label for="minutes" class="form-label">Minutos</label>
+            <input type="number" id="minutes" class="form-control" min="0" max="59" value="5" onfocus="selectInput(this)" oninput="validateInput(this)">
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-center flex-wrap">
+          <button class="btn btn-success btn-custom" onclick="startRelay()">
+            <i class="fas fa-power-off"></i> Ligar
+          </button>
+          <button class="btn btn-danger btn-custom" onclick="stopRelay()">
+            <i class="fas fa-stop"></i> Desligar
+          </button>
+          <button class="btn btn-info btn-custom" onclick="configureWiFi()">
+            <i class="fas fa-wifi"></i> WiFi
+          </button>
+        </div>
+
+        <!-- Status Unificado Inteligente (no lugar da Contagem Regressiva) -->
+        <div id="progressContainer" class="card p-4 mt-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="mb-0"><i class="fas fa-clock"></i> Status do Sistema</h3>
+            <div id="statusIndicator" class="badge bg-secondary">⏱️ MAN</div>
+          </div>
+
+          <!-- Status Principal -->
+          <div id="status" class="alert alert-info mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="fas fa-info-circle me-2"></i>
+                <span id="statusMain">Ventilador Desligado</span>
+              </div>
+            </div>
+            <div id="statusDetails" class="mt-1 small">
+              <span id="statusMode">Modo manual</span>
+            </div>
+          </div>
+
+          <!-- Contagem Regressiva (só aparece quando ativo) -->
+          <div id="countdownSection" style="display: none;">
+            <div id="countdown" class="my-2"></div>
+            <div class="progress my-2">
+              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">
+              </div>
+            </div>
+            <h3><i class="fas fa-clock"></i> Contagem Regressiva</h3>
+          <div id="countdown" class="my-3"></div>
+          <div class="progress my-3">
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+              style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Controle Automático -->
+        <div class="card p-4 mt-3">
+          <h3><i class="fas fa-robot"></i> Controle Automático</h3>
+
+          <!-- Toggle ON/OFF -->
+          <div class="form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="autoModeToggle">
+            <label class="form-check-label" for="autoModeToggle">Modo Automático Ativo</label>
+          </div>
+
+          <!-- Configurações (mostrar só quando ativo) -->
+          <div id="autoSettings" style="display:none;">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Ligar acima de</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
+                  <span class="input-group-text">°C</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tempo ligado</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="ventilationTime" value="30" min="1">
+                  <span class="input-group-text">min</span>
+                </div>
+              </div>
+              <div class="col-md-12">
+                <label class="form-label">Standby entre ciclos</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" id="standbyTime" value="10" min="2">
+                  <span class="input-group-text">min</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Horário de Início</label>
+                <input type="time" class="form-control" id="autoStartTime" value="05:00">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Horário de Fim</label>
+                <input type="time" class="form-control" id="autoEndTime" value="22:00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acesso Permanente -->
+        <div class="access-info alert alert-secondary mt-4">
+          <p><i class="fas fa-link"></i> <strong>Acesso permanente:</strong></p>
+          <input type="text" class="form-control" value="http://esp32.local" readonly onclick="this.select()"
+            style="text-align: center;">
+          <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h4><i class="fas fa-microchip"></i> Informações do Sistema</h4>
+        </div>
+        <div class="card-body">
+          <div id="systemInfo">Carregando...</div>
+          <button class="btn btn-sm btn-info mt-2" onclick="refreshSystemInfo()">
+            <i class="fas fa-sync-alt"></i> Atualizar
+          </button>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <h4><i class="fas fa-memory"></i> Informações de Armazenamento</h4>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h5>Memória Flash</h5>
+              <p>Total: <span id="flashTotal">--</span></p>
+              <p>Usado: <span id="flashUsed">--</span></p>
+              <p>Livre: <span id="flashFree">--</span></p>
+              <div class="progress">
+                <div id="flashProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h5>Sistema de Arquivos</h5>
+              <p>Total: <span id="fsTotal">--</span></p>
+              <p>Usado: <span id="fsUsed">--</span></p>
+              <p>Livre: <span id="fsFree">--</span></p>
+              <div class="progress">
+                <div id="fsProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <button class="btn btn-secondary theme-switch rounded-circle">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+
+    <input type="file" id="htmlUpload">
+    <button onclick="uploadHTML()">Atualizar HTML</button>
+    <script>
+      async function uploadHTML() {
+        const file = document.getElementById("htmlUpload").files[0];
+        if (!file) {
+          alert("Por favor, selecione um arquivo HTML.");
+          return;
+        }
+        const response = await fetch("/upload-html", {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain"
+          },
+          body: await file.text()
+        });
+        if (response.ok) {
+          alert("HTML atualizado com sucesso!");
+        } else {
+          alert("Erro ao atualizar o HTML.");
+        }
+      }
+    </script>
+
+    <!-- Mantenha todo o JavaScript original aqui -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Constantes e variáveis globais
+      const ELEMENTS = {
+        themeSwitch: document.querySelector('.theme-switch i'),
+        autoModeToggle: document.getElementById('autoModeToggle'),
+        autoSettings: document.getElementById('autoSettings'),
+        currentTime: document.getElementById('currentTime'),
+        currentTemp: document.getElementById('currentTemp'),
+        currentHumidity: document.getElementById('currentHumidity'),
+        currentFeelsLike: document.getElementById('currentFeelsLike'),
+        hours: document.getElementById('hours'),
+        minutes: document.getElementById('minutes'),
+        countdown: document.getElementById('countdown'),
+        progressBar: document.getElementById('progressBar'),
+        status: document.getElementById('status')
+      };
+
+      const STATE = {
+        isDarkTheme: localStorage.getItem('darkTheme') === 'true',
+        countdownInterval: null,
+        remainingSeconds: 0,
+        autoMode: false
+      };
+
+      let adjustMode = false; // Indica se o modo de ajuste está ativo
+      let adjustInterval = null; // Armazena o intervalo de atualização
+
+      // Funções utilitárias
+      const fetchData = async (url, options = {}) => {
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) throw new Error(response.statusText);
+          return options.parseText ? await response.text() : await response.json();
+        } catch (error) {
+          console.error('Fetch error:', error);
+          throw error;
+        }
+      };
+
+      const updateElement = (element, content, className = null) => {
+        if (!element) return;
+        if (content !== undefined && element.textContent !== content) {
+          element.textContent = content;
+        }
+        if (className && element.className !== className) {
+          element.className = className;
+        }
+      };
+
+      // Funções principais
+      const updateTime = () => {
+        fetchData('/time', { parseText: true })
+          .then(time => updateElement(ELEMENTS.currentTime, time))
+          .catch(error => console.error('Erro ao atualizar o horário:', error))
+          .finally(() => setTimeout(updateTime, 1000));
+      };
+
+      const updateSensorData = () => {
+        fetchData('/sensor-data')
+          .then(data => {
+            if (!data.error) {
+              updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
+              updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
+              updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
+            }
+          })
+          .catch(error => console.error('Erro ao atualizar os dados do sensor:', error));
+      };
+
+      const updateStatusUI = (status) => {
+        if (status.includes("Ligado")) {
+          ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
+          ELEMENTS.status.className = "alert alert-success mt-3";
+        } else if (status.includes("Desligado")) {
+          ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
+          ELEMENTS.status.className = "alert alert-info mt-3";
+        }
+      };
+
+      // Status Inteligente - Atualiza tudo
+      function updateSmartStatus() {
+        Promise.all([
+          fetchData('/status', { parseText: true }),
+          fetchData('/get-auto-settings'),
+          fetchData('/remaining')
+        ]).then(([relayStatus, autoSettings, remaining]) => {
+
+          const isActive = relayStatus.includes("Ligado");
+          const isAuto = autoSettings.active;
+
+          // 1. Status principal
+          if (isActive) {
+            document.getElementById('status').className = "alert alert-success mt-3";
+            document.getElementById('statusMain').textContent = "Ventilador Ligado";
+          } else {
+            document.getElementById('status').className = "alert alert-info mt-3";
+            document.getElementById('statusMain').textContent = "Ventilador Desligado";
+          }
+
+          // 2. Indicador (badge)
+          const indicator = document.getElementById('statusIndicator');
+          if (isAuto) {
+            indicator.textContent = "🤖 AUTO";
+            indicator.className = "badge bg-primary";
+          } else {
+            indicator.textContent = "⏱️ MAN";
+            indicator.className = "badge bg-secondary";
+          }
+
+          // 3. Detalhes
+          const modeElement = document.getElementById('statusMode');
+
+          if (isAuto) {
+            if (isActive) {
+              modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | 💨 ${autoSettings.ventTime}min ventilação`;
+            } else {
+              modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | ⏸️ ${autoSettings.standbyTime}min standby`;
+            }
+          } else {
+            if (isActive && remaining.remaining > 0) {
+              const mins = Math.ceil(remaining.remaining / 60);
+              modeElement.innerHTML = `⏱️ Manual | ⏰ Desliga em ${mins}min`;
+            } else {
+              modeElement.innerHTML = `⏱️ Manual`;
+            }
+          }
+
+        }).catch(console.error);
+      }
+
+      const checkStatus = () => {
+        fetchData('/status', { parseText: true })
+          .then(status => {
+            updateStatusUI(status);
+            if (status.includes("Ligado")) {
+              return fetchData('/remaining');
+            }
+            return { remaining: 0 };
+          })
+          .then(data => {
+            if (data.remaining > 0) {
+              startCountdown(data.remaining);
+            } else {
+              clearCountdown();
+            }
+          })
+          .catch(error => console.error('Erro ao verificar o status:', error));
+      };
+
+      // Controle do Relé e Contagem Regressiva
+      const controlRelay = async (action, duration = null) => {
+        try {
+          const url = action === 'start' ? `/start?duration=${duration}` : '/stop';
+          const message = await fetchData(url, { parseText: true });
+
+          updateStatusUI(action === 'start' ? "Ventilador Ligado" : "Ventilador Desligado");
+
+          if (action === 'start') {
+            startCountdown(duration * 60);
+          } else {
+            clearCountdown();
+          }
+        } catch (error) {
+          updateStatusUI(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`);
+        }
+      };
+
+      const startCountdown = (seconds) => {
+        clearInterval(STATE.countdownInterval);
+        STATE.remainingSeconds = seconds;
+        const totalSeconds = seconds;
+
+        if (ELEMENTS.progressBar) {
+          ELEMENTS.progressBar.classList.add('progress-bar-animated');
+        }
+
+        STATE.countdownInterval = setInterval(() => {
+          if (STATE.remainingSeconds <= 0) {
+            clearCountdown();
+            updateStatusUI("Ventilador Desligado");
+            return;
+          }
+
+          const hours = Math.floor(STATE.remainingSeconds / 3600);
+          const minutes = Math.floor((STATE.remainingSeconds % 3600) / 60);
+          const secs = STATE.remainingSeconds % 60;
+
+          let countdownText = '';
+          if (hours > 0) countdownText += `${hours}h `;
+          if (minutes > 0 || hours > 0) countdownText += `${minutes}m `;
+          countdownText += `${secs}s`;
+
+          updateElement(ELEMENTS.countdown, `Desligando em: ${countdownText}`);
+
+          if (ELEMENTS.progressBar) {
+            const progress = 100 - (STATE.remainingSeconds / totalSeconds * 100);
+            ELEMENTS.progressBar.style.width = `${progress}%`;
+          }
+
+          STATE.remainingSeconds--;
+        }, 1000);
+      };
+
+      const clearCountdown = () => {
+        clearInterval(STATE.countdownInterval);
+        updateElement(ELEMENTS.countdown, '');
+        if (ELEMENTS.progressBar) {
+          ELEMENTS.progressBar.style.width = "0%";
+          ELEMENTS.progressBar.classList.remove('progress-bar-animated');
+        }
+      };
+
+      // Controle Automático
+      const setupAutoMode = () => {
+        if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
+
+        const sendAutoSettings = () => {
+          const settings = {
+            active: ELEMENTS.autoModeToggle.checked,
+            temp: parseFloat(document.getElementById('autoTemp').value) || 31,
+            ventTime: parseInt(document.getElementById('ventilationTime').value) || 15,
+            standby: parseInt(document.getElementById('standbyTime').value) || 30,
+            startTime: document.getElementById('autoStartTime').value || "05:00",
+            endTime: document.getElementById('autoEndTime').value || "22:00"
+          };
+
+          fetchData('/set-auto-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+          }).catch(() => {
+            ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
+          });
+        };
+
+        ELEMENTS.autoModeToggle.addEventListener('change', () => {
+          ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
+          sendAutoSettings();
+        });
+
+        // Carrega configurações iniciais
+        fetchData('/get-auto-settings')
+          .then(settings => {
+            if (settings.active) {
+              ELEMENTS.autoModeToggle.checked = true;
+              ELEMENTS.autoSettings.style.display = 'block';
+              document.getElementById('autoTemp').value = settings.temp || 31;
+              document.getElementById('ventilationTime').value = settings.ventTime || 15;
+              document.getElementById('standbyTime').value = settings.standby || 10;
+              document.getElementById('autoStartTime').value = settings.startTime || "05:00";
+              document.getElementById('autoEndTime').value = settings.endTime || "22:00";
+            }
+          })
+          .catch(console.error);
+      };
+
+      // Tema
+      const toggleTheme = () => {
+        STATE.isDarkTheme = !STATE.isDarkTheme;
+        document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
+
+        if (ELEMENTS.themeSwitch) {
+          ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
+          ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
+        }
+
+        localStorage.setItem('darkTheme', STATE.isDarkTheme);
+      };
+
+      // WiFi
+      const configureWiFi = () => {
+        const statusElement = document.createElement('div');
+        statusElement.id = 'portalStatus';
+        statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
+        document.body.prepend(statusElement);
+
+        fetchData('/wificonfig', { parseText: true })
+          .then(message => {
+            let countdown = 10;
+            const interval = setInterval(() => {
+              statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
+              if (countdown < 0) {
+                clearInterval(interval);
+                window.location.reload();
+              }
+            }, 1000);
+          });
+      };
+
+      // Inicialização
+      document.addEventListener('DOMContentLoaded', () => {
+        // Tema
+        document.body.classList.toggle('dark-theme', STATE.isDarkTheme);
+        if (ELEMENTS.themeSwitch) {
+          ELEMENTS.themeSwitch.classList.toggle('fa-moon', !STATE.isDarkTheme);
+          ELEMENTS.themeSwitch.classList.toggle('fa-sun', STATE.isDarkTheme);
+        }
+        document.querySelector('.theme-switch')?.addEventListener('click', toggleTheme);
+
+        // Inicia serviços
+        updateTime();
+        updateSensorData();
+        setupAutoMode();
+
+        // Configura atualizações periódicas
+        setInterval(updateSensorData, 60000);
+        setInterval(updateSmartStatus, 3000); // Status a cada 3 segundos
+      });
+
+      // Funções globais
+      window.startRelay = () => {
+        const hours = parseInt(ELEMENTS.hours?.value) || 0;
+        const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
+        const totalMinutes = hours * 60 + minutes;
+
+        if (totalMinutes <= 0) {
+          alert("Por favor, insira um tempo válido");
+          return;
+        }
+
+        controlRelay('start', totalMinutes);
+      };
+
+      window.stopRelay = () => controlRelay('stop');
+      window.configureWiFi = configureWiFi;
+      window.toggleTheme = toggleTheme;
+
+      function refreshSystemInfo() {
+        fetch('/system')
+          .then(r => r.json())
+          .then(data => {
+            let html = `
+                <p><strong>Memória Livre:</strong> ${data.memory.free} bytes</p>
+                <p><strong>Maior Bloco:</strong> ${data.memory.max_alloc} bytes</p>
+                <p><strong>Fragmentação:</strong> ${data.memory.fragmentation}%</p>
+                <p><strong>Tempo de Atividade:</strong> ${Math.floor(data.system.uptime / 3600)}h ${Math.floor((data.system.uptime % 3600) / 60)}m</p>
+            `;
+            document.getElementById('systemInfo').innerHTML = html;
+          });
+      }
+
+      // Atualiza automaticamente a cada 30 segundos
+      setInterval(refreshSystemInfo, 30000);
+      refreshSystemInfo(); // Chama imediatamente
+
+      function updateStorageInfo() {
+        fetch('/flash-info')
+          .then(response => response.json())
+          .then(data => {
+            // Formata os valores em MB/KB
+            const formatMemory = bytes => {
+              if (bytes > 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+              return (bytes / 1024).toFixed(2) + ' KB';
+            };
+
+            // Atualiza Flash
+            document.getElementById('flashTotal').textContent = formatMemory(data.flash.total);
+            document.getElementById('flashUsed').textContent = formatMemory(data.flash.used);
+            document.getElementById('flashFree').textContent = formatMemory(data.flash.free);
+            const flashPercent = (data.flash.used * 100 / data.flash.total).toFixed(1);
+            document.getElementById('flashProgress').style.width = flashPercent + '%';
+            document.getElementById('flashProgress').textContent = flashPercent + '%';
+
+            // Atualiza Sistema de Arquivos
+            document.getElementById('fsTotal').textContent = formatMemory(data.fs.total);
+            document.getElementById('fsUsed').textContent = formatMemory(data.fs.used);
+            document.getElementById('fsFree').textContent = formatMemory(data.fs.free);
+            const fsPercent = (data.fs.used * 100 / data.fs.total).toFixed(1);
+            document.getElementById('fsProgress').style.width = fsPercent + '%';
+            document.getElementById('fsProgress').textContent = fsPercent + '%';
+          });
+      }
+
+      // Atualiza a cada 30 segundos
+      setInterval(updateStorageInfo, 30000);
+      updateStorageInfo(); // Chama imediatamente
+
+      function fetchSensorData() {
+        fetch('/sensor-data')
+          .then(response => response.json())
+          .then(data => {
+            // Atualiza os elementos da div de Dados do Ambiente
+            document.getElementById('currentTemp').innerText = data.temp?.toFixed(1) || '--';
+            document.getElementById('currentHumidity').innerText = data.humidity?.toFixed(1) || '--';
+            document.getElementById('currentFeelsLike').innerText = data.feelsLike?.toFixed(1) || '--';
+
+            // Atualiza a mensagem de status
+            if (data.temp && data.humidity) {
+              document.getElementById('sensorStatus').innerText = 'Dados atualizados com sucesso.';
+              document.getElementById('sensorStatus').className = 'mt-3 text-center text-success';
+            } else {
+              document.getElementById('sensorStatus').innerText = 'Sem sinal dos dados do sensor.';
+              document.getElementById('sensorStatus').className = 'mt-3 text-center text-danger';
+            }
+          })
+          .catch(error => {
+            console.error('Erro ao buscar dados do sensor:', error);
+            document.getElementById('currentTemp').innerText = '--';
+            document.getElementById('currentHumidity').innerText = '--';
+            document.getElementById('currentFeelsLike').innerText = '--';
+
+            // Atualiza a mensagem de status em caso de erro
+            document.getElementById('sensorStatus').innerText = 'Erro ao buscar dados do sensor.';
+            document.getElementById('sensorStatus').className = 'mt-3 text-center text-danger';
+          });
+      }
+
+      function toggleAdjustMode() {
+        adjustMode = !adjustMode; // Alterna o estado do modo de ajuste
+        const button = document.getElementById('toggleAdjustMode');
+
+        if (adjustMode) {
+          // Ativa o modo de ajuste
+          button.innerHTML = '<i class="fas fa-times"></i> Sair do Modo de Ajuste';
+          button.classList.remove('btn-warning');
+          button.classList.add('btn-danger');
+
+          // Atualiza os dados a cada 1 segundo
+          adjustInterval = setInterval(fetchSensorData, 1000);
+        } else {
+          // Desativa o modo de ajuste
+          button.innerHTML = '<i class="fas fa-tools"></i> Modo de Ajuste';
+          button.classList.remove('btn-danger');
+          button.classList.add('btn-warning');
+
+          // Para a atualização automática
+          clearInterval(adjustInterval);
+          adjustInterval = null;
+
+          // Atualiza os dados uma última vez
+          fetchSensorData();
+        }
+      }
+
+      // Adiciona o evento ao botão
+      document.getElementById('toggleAdjustMode').addEventListener('click', toggleAdjustMode);
+
+      // Atualiza os dados imediatamente ao carregar a página
+      fetchSensorData();
+
+      function validateInput(input) {
+        const min = parseInt(input.min, 10);
+        const max = parseInt(input.max, 10);
+        const value = parseInt(input.value, 10);
+
+        if (isNaN(value) || value < min) {
+          input.value = min; // Define o valor mínimo se for inválido
+        } else if (value > max) {
+          input.value = max; // Define o valor máximo se exceder o limite
+        }
+      }
+
+      function selectInput(input) {
+        input.select(); // Seleciona todo o conteúdo do campo
+      }
+    </script>
+</body>
+
+</html>
