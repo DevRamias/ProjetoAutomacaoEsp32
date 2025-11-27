@@ -1,75 +1,94 @@
 Este README ainda está em desenvolvimento. Mais detalhes serão adicionados em breve.
 
-### Release v2.0.0 — Grande atualização do sistema de automação do quarto
+# 📡 Projeto de Automação com ESP32
 
-Esta versão 2.0.0 marca a primeira grande evolução do projeto.
-Inclui uma interface web mais completa e funcional, integração com sensores de temperatura e umidade, modo automático totalmente configurável, melhorias internas na estrutura do código e facilidades de manutenção como atualização via rede tanto para o firmware quanto para a interface HTML.
+Automação residencial simples usando ESP32, com controle de ventilador, sistema Wi-Fi inteligente com fallback para Access Point e interface web integrada para configuração e operação.  
+O objetivo é criar um módulo autônomo capaz de conectar-se automaticamente à rede, permitir configuração via AP quando necessário e oferecer controle rápido de dispositivos conectados.
 
-### Novas funcionalidades visuais
+---
 
-- Exibição de horário sincronizado com servidor NTP 
+## ✨ Funcionalidades Principais
 
--  Painel de ambiente com:
-   - Temperatura
-   - Umidade (%)
-   - Sensação térmica
-- Barra de status indicando:
-   - Tempo ligado
-   - Tempo desligado (standby)
+### 🔌 Controle de Dispositivos
+- Liga e desliga o ventilador.  
+- Modo temporizador simples (“timer”).  
+- Base preparada para expansão com novos relés e funções futuras.  
+- Modo Automático: aciona ou desliga o ventilador conforme temperatura e horário configurados.
 
-### Funcionalidades de controle:
+### 🌡 Monitoramento de Temperatura
+- Leitura da temperatura ambiente via sensor **DHT11**.  
+- Informação exibida em tempo real na interface web.  
+- Integrada ao Modo Automático para decisões de ligar/desligar.
 
-**Modo manual**
-- Campo para definir tempo ligado (horas e minutos)
-- Botão Ligar (baseado no tempo escolhido)
-- Botão Desligar
-- Botão Wi-Fi para ativar o Access Point e trocar a rede conectada
+### 🕒 Sincronização Automática de Horário (NTP)
+- Obtém data e hora corretas via servidor NTP.  
+- Mantém o funcionamento baseado em horários sempre preciso, sem necessidade de ajuste manual.
 
-**Modo Automático**
+### 📶 Conexão Wi-Fi Inteligente e Configuração
+- Conecta automaticamente à última rede salva.  
+- Caso não consiga, ativa um **Access Point** próprio.  
+- Interface web para configuração de novas redes Wi-Fi.  
+- Busca redes disponíveis para facilitar a escolha.  
+- SSID e senha salvos no **SPIFFS**, carregando tudo ao reiniciar.  
 
-**Toggle para ativar/desativar com opções:**
-- Ligar acima de temperatura definida (°C)
-- Tempo que o ventilador permanecerá ligado
-- Tempo em standby (desligado)
-- Definição de hora de início e hora de fim para repetir ciclos somente dentro da janela configurada
+### 🌐 Web Server Integrado
+- Página local para:
+  - Controle do ventilador  
+  - Status da conexão  
+  - Configuração de Wi-Fi  
+- Interface simples acessível via navegador, sem necessidade de aplicativos externos.
 
-**Informações do sistema (Memoria RAM):**
+---
 
-- Memória livre (bytes)
-- Maior bloco disponível (bytes)
-- Fragmentação (%)
-- Tempo de atividade do ESP32 (horas e minutos)
+## 🧩 Ambiente de Desenvolvimento
 
-**Informações de Armazenamento:**
+Este projeto utiliza:
 
-- **Memoria Flash:**
- -Total em MB
- -Usado em MB
- -Livre em MB
+- **Placa:** ESP32 WROOM  
+- **IDE:** Arduino IDE  
+- **Sistema de Arquivos:** SPIFFS  
+- **Bibliotecas principais:**
+  - WiFi.h  
+  - WebServer.h  
+  - FS.h / SPIFFS.h  
+  - Demais bibliotecas do ESP32 Arduino Core
 
-- **Sistema de Arquivos (Memória reservada do esp32)**
- -Total em MB
- -Usado em MB
- -Libre em MB
+> Uma documentação mais detalhada do ambiente será adicionada em breve, incluindo instruções, dependências e esquema de hardware.
 
-**Funcionalidade de manutenção:**
+---
 
-**- Upload de nova interface HTML:**
+## 📦 Estrutura do Projeto
 
-O ESP32 vem inicialmente com uma página HTML mínima apenas para permitir o primeiro upload.
-A interface recomendada encontra-se em /data/index.html.
+Uma documentação mais aprofundada será adicionada futuramente na pasta `/docs`, contendo:
 
-**- Atualização de firmware via OTA:**
+- Fluxo lógico do sistema Wi-Fi  
+- Organização interna do código  
+- Rotas disponíveis no Web Server  
+- Esquema elétrico e conexões  
 
-Disponível quando o ESP32 está na mesma rede local.
-Certifique-se de que a biblioteca necessária está instalada.
-Host e senha OTA estão no código principal e podem (ou devem) ser alterados se desejar usar essa função.
+---
 
+## 🛠️ Status do Projeto
 
-Considerações finais:
+O projeto está em desenvolvimento contínuo.  
+As versões oficiais podem ser consultadas na aba **Releases**.
 
-- Se o ESP32 não encontrar uma rede salva, ele sobe um AP chamado "ESP32-Config". Conecte-se e acesse 192.168.4.1.
-- Verifique pinos de entrada e saída no código .INO
-- Ao modificar a página HTML, revise:
-  - As rotas na classe **WebServerManager**
-  - O script do arquivo index.html, que depende dessas rotas para funcionar corretamente.
+- **v1.0.0** — versão inicial simples  
+- **v2.0.0** — reestruturação total para arquitetura orientada a objetos  
+- Próximas versões já estão planejadas com novos recursos
+
+---
+
+## 📜 Licença
+
+Distribuído sob a **MIT License**.  
+Sinta-se à vontade para usar, modificar e distribuir, desde que mantenha os créditos.
+
+---
+
+## 👤 Autor
+
+**Ramias Lopes**  
+Criador e desenvolvedor deste projeto.
+
+---
