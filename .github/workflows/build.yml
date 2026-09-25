@@ -1,0 +1,77 @@
+# ============================================================================
+#  GitHub Actions - compila o firmware na nuvem do GitHub
+# ----------------------------------------------------------------------------
+#  - A cada push / pull request: so confere se o codigo compila (✅ ou ❌).
+#    Nao altera nenhum arquivo nem commit.
+#  - Ao PUBLICAR uma Release (ex.: tag v2.1.0): compila com esse numero de
+#    versao embutido no firmware e anexa na Release:
+#       firmware.bin  -> programa da placa (usado na atualizacao remota)
+#       littlefs.bin  -> memoria de arquivos (index.html)
+#  E o mesmo que o botao ✓ do PlatformIO faz, so que numa maquina do GitHub.
+# ============================================================================
+name: Compilar firmware
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:        # botao "Run workflow" na aba Actions
+
+permissions:
+  contents: write           # necessario para anexar arquivos na Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Cache do PlatformIO (deixa as proximas compilacoes mais rapidas)
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Definir a versao do firmware
+        # Na Release usa a tag (ex.: v2.1.0); nos outros casos, "dev-<commit>"
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "PLATFORMIO_BUILD_FLAGS=-DFW_VERSION=\\\"$VERSION\\\"" >> "$GITHUB_ENV"
+          echo "Versao: $VERSION"
+
+      - name: Compilar o firmware
+        run: pio run -e esp32dev
+
+      - name: Gerar a imagem do LittleFS (pasta data/)
+        run: pio run -e esp32dev -t buildfs
+
+      - name: Guardar os arquivos desta compilacao
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ env.VERSION }}
+          path: |
+            .pio/build/esp32dev/firmware.bin
+            .pio/build/esp32dev/littlefs.bin
+
+      - name: Anexar os arquivos na Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            .pio/build/esp32dev/firmware.bin
+            .pio/build/esp32dev/littlefs.bin
