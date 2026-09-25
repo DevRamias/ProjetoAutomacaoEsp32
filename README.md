@@ -41,8 +41,8 @@ O objetivo é criar um módulo autônomo capaz de conectar-se automaticamente à
 ### 📲 Atualização OTA (Over-The-Air)
 
 - Atualização de firmware **sem cabo USB**, pela rede Wi-Fi (ArduinoOTA + mDNS em `esp32.local`).
-- Senha opcional definida no portal do WiFiManager e salva no LittleFS.
-- Se a senha ficar vazia, o OTA fica **sem proteção** (apenas um aviso é exibido no monitor serial).
+- O OTA **sempre exige senha**. A primeira senha é `senha`; troque pelo painel web, no card **Configurações da Placa** (vale na hora, sem reiniciar).
+- A senha fica salva no LittleFS (`/ota_config.json`) e **não** passa mais pelo portal do WiFiManager.
 - Para gravar via OTA com o PlatformIO: `pio run -t upload --upload-port esp32.local`.
 
 ---
@@ -58,7 +58,7 @@ O objetivo é criar um módulo autônomo capaz de conectar-se automaticamente à
   - NTPClient
   - DHT sensor library + Adafruit Unified Sensor
 
-> Credenciais não ficam no código: a rede Wi-Fi é configurada pelo portal do WiFiManager e a senha do OTA pelo próprio portal — ambas persistidas no LittleFS.
+> Credenciais não ficam no código: a rede Wi-Fi é configurada pelo portal do WiFiManager e a senha do OTA pelo painel web (card **Configurações da Placa**). No PC, a senha usada para gravar fica no arquivo local `ota_senha.ini`, que está no `.gitignore`.
 
 ### 🚀 Como compilar e gravar
 
@@ -94,7 +94,11 @@ pio run -e esp32ota -t uploadfs   # grava a pasta data/ (index.html) pelo Wi-Fi
 New-NetFirewallRule -DisplayName 'PlatformIO OTA (espota) - ESP32' -Direction Inbound -Action Allow -Program "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -RemoteAddress 192.168.1.65 -Profile Any
 ```
 
-**Senha do OTA:** o firmware lê a senha do arquivo `/ota_config.json` no LittleFS, definida no portal (`http://esp32.local/wificonfig`). Sem esse arquivo, o OTA sobe **sem senha** (a placa apenas avisa no monitor serial) — recomendável configurar uma senha pelo portal.
+**Senha do OTA:** a placa sempre exige senha. Na primeira vez ela é `senha`. Para trocar:
+1. No painel (`http://esp32.local`), card **Configurações da Placa**: informe a senha atual e a nova e clique em **Salvar senha**.
+2. No PC, abra o arquivo `ota_senha.ini` (na raiz do projeto, ao lado do `platformio.ini`) e troque o valor de `password`. É dele que o PlatformIO tira a senha ao gravar pelo Wi-Fi (`upload_flags = --auth=...`). Se o arquivo não existir, o PlatformIO usa `senha`.
+
+Se esquecer a senha: com o cabo USB, rode **Upload Filesystem Image** no ambiente `esp32dev` (`pio run -e esp32dev -t uploadfs`). Isso regrava o LittleFS (a senha volta a ser `senha` e o painel volta ao `data/index.html`; as configurações do modo automático voltam ao padrão). A rede Wi-Fi é mantida.
 
 > Se a placa estiver com um firmware antigo compilado pelo **core 3.x** do ESP32 (autenticação SHA-256/PBKDF2), o `espota.py` que acompanha o pacote do PlatformIO usa MD5 e falha com `No response from the ESP` mesmo com o firewall liberado. Nesse caso grave uma vez por USB (`pio run -t upload`) ou use o `espota.py` atualizado do repositório oficial (`arduino-esp32/tools/espota.py`), que tenta SHA-256 e faz fallback para MD5.
 
@@ -143,7 +147,9 @@ As versões oficiais podem ser consultadas na aba **Releases**.
 
 - **v1.0.0** — versão inicial simples  
 - **v2.0.0** — reestruturação total para arquitetura orientada a objetos  
-- Próximas versões já estão planejadas com novos recursos
+- **v2.1.0** — PlatformIO, GitHub Actions, página de recuperação, configurações da placa, senha do OTA pelo painel e várias correções (sensação térmica, modo automático, painel)  
+
+Detalhes de cada versão no [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

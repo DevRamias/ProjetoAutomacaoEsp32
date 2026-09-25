@@ -3,6 +3,15 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
+// CORRIGIDO: os horarios sao comparados como texto ("HH:MM"). Um horario sem
+// zero a esquerda, como "5:00", quebrava a comparacao: "10:00" <= "5:00" dava
+// verdadeiro e o modo automatico ficava ativo quase o dia todo.
+static String normalizeTime(const String& t) {
+  int sep = t.indexOf(':');
+  if (sep == 1) return "0" + t;   // "5:00" -> "05:00"
+  return t;
+}
+
 // --- Construtor ---
 RelayManager::RelayManager(int pin) : 
   relayPin(pin), 
@@ -26,7 +35,7 @@ RelayManager::RelayManager(int pin) :
   _autoSettings.ventTime = 15;
   _autoSettings.standbyTime = 30;
   _autoSettings.startTime = "21:00";
-  _autoSettings.endTime = "5:00";
+  _autoSettings.endTime = "05:00";
 }
 
 // --- Métodos Principais ---
@@ -42,15 +51,23 @@ void RelayManager::begin() {
 }
 
 void RelayManager::update(float currentTemperature) {
+  // Lógica do modo MANUAL
+  // CORRIGIDO: o fim do timer manual so desliga o timer manual. Antes chamava
+  // stop(), que tambem derrubava o ciclo automatico.
+  if (relayActive && (millis() - relayStartTime >= relayDuration)) {
+    relayActive = false;
+    relayDuration = 0;
+    digitalWrite(relayPin, LOW);
+    Serial.println("[MANUAL] Ventilador desligado automaticamente por tempo.");
+  }
+
   // Reativa automático se necessário
-  if (_autoSettings.active && shouldAutoCycleRun() && !_autoCycleActive) {
+  // CORRIGIDO: nao reativa enquanto houver um timer manual rodando. Antes, ligar
+  // no manual com o automatico habilitado (dentro do horario) era desfeito no
+  // loop seguinte: o automatico voltava e desligava o rele.
+  if (_autoSettings.active && shouldAutoCycleRun() && !_autoCycleActive && !relayActive) {
     startAutoCycle(_autoSettings.ventTime, _autoSettings.standbyTime, _autoSettings.minTemp);
     Serial.println("[AUTO] Reativado automaticamente!");
-  }
-  // Lógica do modo MANUAL
-  if (relayActive && !_autoCycleActive && (millis() - relayStartTime >= relayDuration)) {
-    stop();
-    Serial.println("[MANUAL] Ventilador desligado automaticamente por tempo.");
   }
 
   // Lógica do modo AUTOMÁTICO
@@ -118,6 +135,13 @@ void RelayManager::stop() {
 // --- Controle Automático ---
 
 void RelayManager::startAutoCycle(unsigned long ventMinutes, unsigned long standbyMinutes, float triggerTemp) {
+  // CORRIGIDO: ligar o automatico cancela o timer manual. Antes o rele desligava,
+  // mas 'relayActive' continuava true e o timer manual ficava "fantasma".
+  if (relayActive) {
+    relayActive = false;
+    relayDuration = 0;
+    Serial.println("[AUTO] Timer manual cancelado pelo modo automatico.");
+  }
   _autoCycleActive = true;
   _ventilationDurationMs = ventMinutes * 60 * 1000;
   _standbyDurationMs = standbyMinutes * 60 * 1000;
@@ -148,6 +172,8 @@ void RelayManager::setNTPManager(NTPManager* ntpManager) {
 
 void RelayManager::setAutoSettings(const AutoSettings& settings) {
   _autoSettings = settings;
+  _autoSettings.startTime = normalizeTime(_autoSettings.startTime);
+  _autoSettings.endTime = normalizeTime(_autoSettings.endTime);
   
   // Aplica as configurações se o modo auto estiver ativo
   if (_autoSettings.active) {
@@ -198,7 +224,10 @@ void RelayManager::loadAutoSettings() {
   _autoSettings.ventTime = doc["ventTime"] | 15;
   _autoSettings.standbyTime = doc["standbyTime"] | 30;
   _autoSettings.startTime = doc["startTime"] | "21:00";
-  _autoSettings.endTime = doc["endTime"] | "5:00";
+  _autoSettings.endTime = doc["endTime"] | "05:00";
+  // Corrige configuracoes antigas salvas como "5:00"
+  _autoSettings.startTime = normalizeTime(_autoSettings.startTime);
+  _autoSettings.endTime = normalizeTime(_autoSettings.endTime);
 
   Serial.println("Configuracoes automaticas carregadas");
 }
@@ -280,6 +309,11 @@ bool RelayManager::isActive() {
 
 bool RelayManager::isAutoCycleActive() {
   return _autoCycleActive;
+}
+
+// Timer manual rodando (usado pela rota /remaining)
+bool RelayManager::isManualActive() {
+  return relayActive;
 }
 
 unsigned long RelayManager::getStartTime() {

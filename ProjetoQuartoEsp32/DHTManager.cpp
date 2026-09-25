@@ -81,11 +81,12 @@ float DHTManager::getLastHumidity() const {
     return _lastValidHumidity;
 }
 
-// Sensacao termica (indice de calor).
-// A formula de Rothfusz foi ajustada pelo NWS/NOAA para temperatura em
-// Fahrenheit e umidade relativa em % (faixa de validade: >= 26,7 C / 80 F).
-// Abaixo dessa faixa o proprio algoritmo cai na formula simples, que devolve
-// praticamente a temperatura medida.
+// Sensacao termica (indice de calor) - algoritmo oficial do NWS/NOAA.
+// CORRIGIDO: a regressao de Rothfusz so vale no calor (>= 80 F / 26,7 C).
+// A versao anterior calculava Rothfusz primeiro e, no frio com umidade alta,
+// ela "explodia" (ex.: 10 C / 90% dava 27,8 C). Agora segue a ordem do NWS:
+//   1) calcula a formula simples (Steadman);
+//   2) so troca para Rothfusz se a media (simples + temperatura) der >= 80 F.
 float DHTManager::heatIndex(float temperatureC, float humidityPercent) {
     if (isnan(temperatureC) || isnan(humidityPercent)) {
         return NAN;
@@ -97,30 +98,30 @@ float DHTManager::heatIndex(float temperatureC, float humidityPercent) {
     if (rh < 0.0f) rh = 0.0f;
     if (rh > 100.0f) rh = 100.0f;
 
-    // Regressao de Rothfusz
-    float hi = -42.379f
-             + 2.04901523f * t
-             + 10.14333127f * rh
-             - 0.22475541f * t * rh
-             - 0.00683783f * t * t
-             - 0.05481717f * rh * rh
-             + 0.00122874f * t * t * rh
-             + 0.00085282f * t * rh * rh
-             - 0.00000199f * t * t * rh * rh;
+    // 1) Formula simples (vale para temperaturas amenas e frias)
+    float hi = 0.5f * (t + 61.0f + (t - 68.0f) * 1.2f + rh * 0.094f);
 
-    // Ajuste para ar muito seco
-    if (rh < 13.0f && t >= 80.0f && t <= 112.0f) {
-        hi -= ((13.0f - rh) / 4.0f) * sqrtf((17.0f - fabsf(t - 95.0f)) / 17.0f);
-    }
-    // Ajuste para ar muito umido (tambem nos extremos de temperatura)
-    else if (rh > 85.0f && t >= 80.0f && t <= 87.0f) {
-        hi += ((rh - 85.0f) / 10.0f) * ((87.0f - t) / 5.0f);
-    }
+    // 2) No calor, usa a regressao de Rothfusz com os ajustes do NWS.
+    //    A media (hi + t) / 2 serve so para DECIDIR qual formula usar.
+    if ((hi + t) / 2.0f >= 80.0f) {
+        hi = -42.379f
+           + 2.04901523f * t
+           + 10.14333127f * rh
+           - 0.22475541f * t * rh
+           - 0.00683783f * t * t
+           - 0.05481717f * rh * rh
+           + 0.00122874f * t * t * rh
+           + 0.00085282f * t * rh * rh
+           - 0.00000199f * t * t * rh * rh;
 
-    // Fora da faixa de validade, usa a media com a formula simples (Steadman)
-    if (hi < 80.0f) {
-        hi = 0.5f * (t + 61.0f + (t - 68.0f) * 1.2f + rh * 0.094f);
-        hi = (hi + t) / 2.0f;
+        // Ajuste para ar muito seco
+        if (rh < 13.0f && t >= 80.0f && t <= 112.0f) {
+            hi -= ((13.0f - rh) / 4.0f) * sqrtf((17.0f - fabsf(t - 95.0f)) / 17.0f);
+        }
+        // Ajuste para ar muito umido
+        else if (rh > 85.0f && t >= 80.0f && t <= 87.0f) {
+            hi += ((rh - 85.0f) / 10.0f) * ((87.0f - t) / 5.0f);
+        }
     }
 
     // Volta para Celsius

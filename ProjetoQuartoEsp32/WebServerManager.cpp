@@ -2,13 +2,39 @@
 #include "WebServerManager.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+
+// Versao do firmware. O GitHub Actions define com a tag da Release (ex.: v2.1.0).
+// Compilando no PC, fica "local".
+#ifndef FW_VERSION
+#define FW_VERSION "local"
+#endif
 #ifdef ESP_IDF_VERSION_MAJOR
 #include <esp_flash.h>
 #endif
 
-// O HTML inicial permanece o mesmo.
+// Pagina de RECUPERACAO embutida no firmware.
+// Ela nunca depende do LittleFS: mesmo que o /index.html salvo esteja
+// quebrado (sem JS, com erro etc.), esta pagina continua funcionando em
+//   http://esp32.local/recovery
+// E tambem a pagina mostrada em "/" quando nao existe /index.html salvo.
 const char* initialHTML = R"rawliteral(
-<!DOCTYPE html><html><head><title>ESP32 Web Server</title></head><body><h1>Bem-vindo ao ESP32!</h1><p>Este é o HTML inicial carregado diretamente do código.</p><p>Use a rota <code>/upload-html</code> para atualizar este HTML.</p><input type="file" id="htmlUpload" accept=".html"><button onclick="uploadHTML()">Upload HTML</button><script>async function uploadHTML(){const file=document.getElementById("htmlUpload").files[0];if(!file){alert("Por favor, selecione um arquivo HTML.");return;}const response=await fetch("/upload-html",{method:"POST",headers:{"Content-Type":"text/plain"},body:await file.text()});if(response.ok){alert("HTML atualizado com sucesso!");}else{alert("Erro ao atualizar o HTML.");}}</script></body></html>
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ESP32 - Recuperacao</title>
+<style>body{font-family:sans-serif;max-width:520px;margin:24px auto;padding:0 16px;line-height:1.5}button{padding:8px 14px;margin:6px 0;cursor:pointer}.danger{background:#c0392b;color:#fff;border:0;border-radius:4px}#msg{margin-top:12px;font-weight:bold}</style></head>
+<body><h1>ESP32 - Modo de recuperacao</h1>
+<p>Esta pagina vem do proprio firmware e funciona mesmo se o painel salvo estiver quebrado.</p>
+<h3>1. Enviar um index.html</h3>
+<input type="file" id="htmlUpload" accept=".html"><br><button onclick="uploadHTML()">Enviar HTML</button>
+<h3>2. Apagar a pagina salva</h3>
+<p>Remove o /index.html da memoria. O endereco principal passa a mostrar esta pagina ate voce enviar outro HTML.</p>
+<button class="danger" onclick="resetHTML()">Apagar pagina salva</button>
+<p><a href="/">Ir para a pagina principal</a></p><div id="msg"></div>
+<script>
+function msg(t){document.getElementById("msg").textContent=t;}
+async function uploadHTML(){const f=document.getElementById("htmlUpload").files[0];if(!f){msg("Selecione um arquivo .html primeiro.");return;}
+const r=await fetch("/upload-html",{method:"POST",headers:{"Content-Type":"text/plain"},body:await f.text()});msg(r.ok?"HTML enviado! Abra a pagina principal para conferir.":"Erro ao enviar o HTML.");}
+async function resetHTML(){if(!confirm("Apagar a pagina salva na ESP32?"))return;
+const r=await fetch("/reset-html",{method:"POST"});msg(await r.text());}
+</script></body></html>
 )rawliteral";
 
 void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager) {
@@ -32,6 +58,12 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   server.on("/flash-info", HTTP_GET, std::bind(&WebServerManager::handleFlashInfo, this));
   server.on("/sensor-data", HTTP_GET, std::bind(&WebServerManager::handleSensorData, this));
   server.on("/upload-html", HTTP_POST, std::bind(&WebServerManager::handleUpload, this));
+  // Recuperacao: pagina embutida no firmware (sempre funciona) e rota que apaga o /index.html
+  server.on("/recovery", HTTP_GET, std::bind(&WebServerManager::handleRecovery, this));
+  server.on("/reset-html", HTTP_ANY, std::bind(&WebServerManager::handleResetHtml, this));
+  // Configuracoes da placa (sem precisar abrir o portal Wi-Fi)
+  server.on("/set-ota-password", HTTP_POST, std::bind(&WebServerManager::handleSetOtaPassword, this));
+  server.on("/device-info", HTTP_GET, std::bind(&WebServerManager::handleDeviceInfo, this));
   server.on("/set-auto-settings", HTTP_POST, std::bind(&WebServerManager::handleSetAutoSettings, this));
   server.on("/get-auto-settings", HTTP_GET, std::bind(&WebServerManager::handleGetAutoSettings, this));
 
@@ -54,6 +86,9 @@ void WebServerManager::handleClient() {
   if (portalRequested && millis() >= portalStartTime) {
     shouldStartPortal = false;
     portalRequested = false;
+    // Por seguranca, desliga o ventilador: enquanto o portal estiver aberto
+    // (ate 3 min) a placa nao roda o resto do programa.
+    relayManager->stop();
     server.stop();
     wifiManager->startConfigPortal("ESP32-Config");
     server.begin();
@@ -80,7 +115,7 @@ void WebServerManager::handleSetAutoSettings() {
     settings.ventTime = doc["ventTime"] | 15;
     settings.standbyTime = doc["standby"] | 30;
     settings.startTime = doc["startTime"] | "21:00";
-    settings.endTime = doc["endTime"] | "5:00";
+    settings.endTime = doc["endTime"] | "05:00";
 
     // Passa as configuracoes para o RelayManager (ele decide o que fazer)
     relayManager->setAutoSettings(settings);
@@ -115,6 +150,60 @@ void WebServerManager::handleRoot() {
   }
 }
 
+// Sempre mostra a pagina de recuperacao embutida, ignorando o LittleFS
+void WebServerManager::handleRecovery() {
+  server.send(200, "text/html", initialHTML);
+}
+
+// Apaga o /index.html salvo; "/" volta a mostrar a pagina embutida.
+// Aceita GET tambem, para funcionar so digitando o endereco no navegador:
+//   http://esp32.local/reset-html
+void WebServerManager::handleResetHtml() {
+  if (!LittleFS.exists("/index.html")) {
+    server.send(200, "text/plain", "Nao ha pagina salva. Ja esta usando a pagina do firmware.");
+    return;
+  }
+  if (LittleFS.remove("/index.html")) {
+    Serial.println("[WEB] /index.html apagado; usando a pagina do firmware.");
+    server.send(200, "text/plain", "Pagina salva apagada! A pagina principal agora e a do firmware.");
+  } else {
+    server.send(500, "text/plain", "Erro ao apagar /index.html.");
+  }
+}
+
+// Troca a senha do OTA. Espera JSON: {"current":"...","new":"..."}
+void WebServerManager::handleSetOtaPassword() {
+  if (!otaManager) {
+    server.send(500, "text/plain", "OTA nao configurado.");
+    return;
+  }
+  JsonDocument doc;
+  if (!server.hasArg("plain") || deserializeJson(doc, server.arg("plain"))) {
+    server.send(400, "text/plain", "Dados invalidos.");
+    return;
+  }
+  String error;
+  if (otaManager->changePassword(doc["current"] | "", doc["new"] | "", error)) {
+    server.send(200, "text/plain", "Senha do OTA alterada!");
+  } else {
+    server.send(error.startsWith("Senha atual") ? 403 : 400, "text/plain", error);
+  }
+}
+
+// Informacoes da placa para o painel (nunca envia a senha)
+void WebServerManager::handleDeviceInfo() {
+  JsonDocument doc;
+  doc["ssid"] = WiFi.SSID();
+  doc["ip"] = WiFi.localIP().toString();
+  doc["rssi"] = WiFi.RSSI();
+  doc["hostname"] = "esp32.local";
+  doc["firmware"] = FW_VERSION;
+  doc["otaDefaultPassword"] = otaManager ? otaManager->isDefaultPassword() : true;
+  String jsonStr;
+  serializeJson(doc, jsonStr);
+  server.send(200, "application/json", jsonStr);
+}
+
 void WebServerManager::handleStart() {
   if (server.hasArg("duration")) {
     unsigned long duration = server.arg("duration").toInt();
@@ -144,14 +233,17 @@ void WebServerManager::handleStatus() {
 
 void WebServerManager::handleWiFiConfig() {
   shouldStartPortal = true;
-  server.send(200, "text/plain", "Portal WiFi sera iniciado. Conecte-se ao AP 'ESP32-Config'");
+  server.send(200, "text/plain", "Portal WiFi iniciado. Conecte-se a rede 'ESP32-Config' e abra 192.168.4.1");
 }
 
 void WebServerManager::handleRemaining() {
   JsonDocument doc;
-  if (relayManager->isActive() && !relayManager->isAutoCycleActive()) {
+  // CORRIGIDO: so informa tempo quando ha timer MANUAL rodando, e protege
+  // contra conta negativa (unsigned) que virava um numero gigante.
+  if (relayManager->isManualActive() && relayManager->isActive()) {
     unsigned long elapsed = millis() - relayManager->getStartTime();
-    doc["remaining"] = (relayManager->getDuration() - elapsed) / 1000;
+    unsigned long duration = relayManager->getDuration();
+    doc["remaining"] = (elapsed < duration) ? (duration - elapsed) / 1000 : 0;
   } else {
     doc["remaining"] = 0;
   }

@@ -13,7 +13,7 @@ struct AutoSettings {
     unsigned int ventTime = 15;
     unsigned int standbyTime = 30;
     String startTime = "21:00";
-    String endTime = "5:00";
+    String endTime = "05:00";
 };
 
 class RelayManager {
@@ -48,6 +48,7 @@ public:
     // --- Métodos de Status ---
     bool isActive();
     bool isAutoCycleActive();
+    bool isManualActive();   // timer manual rodando
     unsigned long getStartTime();
     unsigned long getDuration();
 

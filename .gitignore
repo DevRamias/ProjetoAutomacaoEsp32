@@ -74,3 +74,6 @@ littlefs.bin
 # ===== Pastas locais de teste =====
 test/output/
 docs/build/
+
+# ===== Senha local do OTA (nunca enviar ao GitHub) =====
+ota_senha.ini

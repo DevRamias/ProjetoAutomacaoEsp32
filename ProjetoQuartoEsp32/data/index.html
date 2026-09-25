@@ -189,17 +189,14 @@
           </div>
 
           <!-- Contagem Regressiva (só aparece quando ativo) -->
+          <!-- CORRIGIDO: havia dois blocos com os mesmos ids (countdown/progressBar),
+               um <div> sem fechar e esta secao nunca era exibida pelo JS -->
           <div id="countdownSection" style="display: none;">
             <div id="countdown" class="my-2"></div>
             <div class="progress my-2">
-              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%">
-              </div>
+              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                style="width: 0%"></div>
             </div>
-            <h3><i class="fas fa-clock"></i> Contagem Regressiva</h3>
-          <div id="countdown" class="my-3"></div>
-          <div class="progress my-3">
-            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
-              style="width: 0%"></div>
           </div>
         </div>
 
@@ -219,32 +216,38 @@
               <div class="col-md-6">
                 <label class="form-label">Ligar acima de</label>
                 <div class="input-group">
-                  <input type="number" class="form-control" id="autoTemp" value="28" step="0.1">
+                  <input type="number" class="form-control" id="autoTemp" value="30" step="0.1">
                   <span class="input-group-text">°C</span>
                 </div>
               </div>
               <div class="col-md-6">
                 <label class="form-label">Tempo ligado</label>
                 <div class="input-group">
-                  <input type="number" class="form-control" id="ventilationTime" value="30" min="1">
+                  <input type="number" class="form-control" id="ventilationTime" value="15" min="1">
                   <span class="input-group-text">min</span>
                 </div>
               </div>
               <div class="col-md-12">
                 <label class="form-label">Standby entre ciclos</label>
                 <div class="input-group">
-                  <input type="number" class="form-control" id="standbyTime" value="10" min="2">
+                  <input type="number" class="form-control" id="standbyTime" value="30" min="2">
                   <span class="input-group-text">min</span>
                 </div>
               </div>
               <div class="col-md-6">
                 <label class="form-label">Horário de Início</label>
-                <input type="time" class="form-control" id="autoStartTime" value="05:00">
+                <input type="time" class="form-control" id="autoStartTime" value="21:00">
               </div>
               <div class="col-md-6">
                 <label class="form-label">Horário de Fim</label>
-                <input type="time" class="form-control" id="autoEndTime" value="22:00">
+                <input type="time" class="form-control" id="autoEndTime" value="05:00">
               </div>
+            </div>
+            <div class="d-flex align-items-center gap-3 mt-3">
+              <button id="saveAutoSettings" class="btn btn-primary" type="button">
+                <i class="fas fa-save"></i> Salvar configurações
+              </button>
+              <small id="autoSaveStatus" class="text-muted"></small>
             </div>
           </div>
         </div>
@@ -255,6 +258,45 @@
           <input type="text" class="form-control" value="http://esp32.local" readonly onclick="this.select()"
             style="text-align: center;">
           <small class="text-muted">Use este endereço em qualquer dispositivo na sua rede</small>
+        </div>
+      </div>
+
+      <!-- NOVO: Configuracoes da placa (sem precisar abrir o portal Wi-Fi) -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h4><i class="fas fa-sliders-h"></i> Configurações da Placa</h4>
+        </div>
+        <div class="card-body">
+          <p class="mb-1"><strong>Rede:</strong> <span id="devSsid">--</span></p>
+          <p class="mb-1"><strong>IP:</strong> <span id="devIp">--</span> (<span id="devHost">esp32.local</span>)</p>
+          <p class="mb-1"><strong>Sinal Wi-Fi:</strong> <span id="devRssi">--</span></p>
+          <p class="mb-3"><strong>Firmware:</strong> <span id="devFirmware">--</span></p>
+
+          <h5><i class="fas fa-key"></i> Senha do OTA (gravação pelo Wi-Fi)</h5>
+          <div id="otaDefaultWarning" class="alert alert-warning py-2" style="display:none;">
+            A placa ainda usa a senha padrão <strong>senha</strong>. Troque abaixo.
+          </div>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <input type="password" id="otaCurrent" class="form-control" placeholder="Senha atual" autocomplete="current-password">
+            </div>
+            <div class="col-md-4">
+              <input type="password" id="otaNew" class="form-control" placeholder="Nova senha (4 a 32)" autocomplete="new-password">
+            </div>
+            <div class="col-md-4">
+              <input type="password" id="otaConfirm" class="form-control" placeholder="Confirmar nova senha" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-3 mt-3">
+            <button id="saveOtaPassword" class="btn btn-primary" type="button">
+              <i class="fas fa-save"></i> Salvar senha
+            </button>
+            <small id="otaSaveStatus" class="text-muted"></small>
+          </div>
+          <small class="text-muted d-block mt-2">
+            Depois de trocar aqui, troque também no arquivo <code>ota_senha.ini</code> do projeto no PC,
+            senão o botão de gravar (→) do VS Code não consegue enviar o firmware.
+          </small>
         </div>
       </div>
 
@@ -304,8 +346,12 @@
       </button>
     </div>
 
-    <input type="file" id="htmlUpload">
-    <button onclick="uploadHTML()">Atualizar HTML</button>
+    <!-- Atualizar a pagina (dentro do .container para ficar centralizado) -->
+    <div class="text-center my-4">
+      <input type="file" id="htmlUpload" accept=".html">
+      <button onclick="uploadHTML()">Atualizar HTML</button>
+    </div>
+  </div> <!-- fecha o .container -->
     <script>
       async function uploadHTML() {
         const file = document.getElementById("htmlUpload").files[0];
@@ -379,33 +425,40 @@
         }
       };
 
+      // Mesma regra do firmware (RelayManager::isWithinActiveHours)
+      let lastTime = '';
+      const isWithinHours = (start, end) => {
+        if (!lastTime || !start || !end) return true;
+        const now = lastTime.substring(0, 5);
+        return start <= end ? (now >= start && now <= end) : (now >= start || now <= end);
+      };
+
       // Funções principais
       const updateTime = () => {
         fetchData('/time', { parseText: true })
-          .then(time => updateElement(ELEMENTS.currentTime, time))
+          .then(time => { lastTime = time; updateElement(ELEMENTS.currentTime, time); })
           .catch(error => console.error('Erro ao atualizar o horário:', error))
           .finally(() => setTimeout(updateTime, 1000));
       };
 
-      const updateSensorData = () => {
-        fetchData('/sensor-data')
-          .then(data => {
-            if (!data.error) {
-              updateElement(ELEMENTS.currentTemp, `${data.temp?.toFixed(1) || '--'}°C`);
-              updateElement(ELEMENTS.currentHumidity, `${data.humidity?.toFixed(1) || '--'}%`);
-              updateElement(ELEMENTS.currentFeelsLike, `${data.feelsLike?.toFixed(1) || '--'}°C`);
-            }
-          })
-          .catch(error => console.error('Erro ao atualizar os dados do sensor:', error));
-      };
+      // CORRIGIDO: havia duas funcoes de sensor (uma com °C/% e outra sem),
+      // entao a unidade aparecia e sumia. Agora tudo passa por fetchSensorData().
+      const updateSensorData = () => fetchSensorData();
 
+      // CORRIGIDO: antes trocava o innerHTML inteiro de #status, apagando os
+      // spans #statusMain/#statusMode. Depois disso o updateSmartStatus quebrava
+      // (null) a cada 3s ate recarregar a pagina.
       const updateStatusUI = (status) => {
+        const main = document.getElementById('statusMain');
         if (status.includes("Ligado")) {
-          ELEMENTS.status.innerHTML = '<i class="fas fa-check-circle me-2"></i> Ventilador Ligado';
           ELEMENTS.status.className = "alert alert-success mt-3";
+          if (main) main.textContent = "Ventilador Ligado";
         } else if (status.includes("Desligado")) {
-          ELEMENTS.status.innerHTML = '<i class="fas fa-info-circle me-2"></i> Ventilador Desligado';
           ELEMENTS.status.className = "alert alert-info mt-3";
+          if (main) main.textContent = "Ventilador Desligado";
+        } else {
+          ELEMENTS.status.className = "alert alert-danger mt-3";
+          if (main) main.textContent = status;
         }
       };
 
@@ -441,20 +494,33 @@
 
           // 3. Detalhes
           const modeElement = document.getElementById('statusMode');
+          const manualLeft = remaining.remaining || 0;
 
-          if (isAuto) {
+          // NOVO: a contagem segue o que a PLACA informa. Se o timer manual foi
+          // cancelado (ex.: modo automatico ligado), a contagem some; se foi
+          // iniciado por outro aparelho, ela aparece.
+          if (manualLeft > 0) {
+            if (!STATE.countdownInterval || Math.abs(STATE.remainingSeconds - manualLeft) > 3) {
+              startCountdown(manualLeft);
+            }
+          } else if (STATE.countdownInterval) {
+            clearCountdown();
+          }
+
+          if (manualLeft > 0) {
+            // Timer manual tem prioridade sobre o automatico enquanto roda
+            const mins = Math.ceil(manualLeft / 60);
+            modeElement.innerHTML = `⏱️ Manual | ⏰ Desliga em ${mins}min${isAuto ? ' | 🤖 automático volta depois' : ''}`;
+          } else if (isAuto && !isWithinHours(autoSettings.startTime, autoSettings.endTime)) {
+            modeElement.innerHTML = `🔧 Automático | 🌙 Fora do horário (${autoSettings.startTime}-${autoSettings.endTime}) | aguardando`;
+          } else if (isAuto) {
             if (isActive) {
               modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | 💨 ${autoSettings.ventTime}min ventilação`;
             } else {
-              modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | ⏸️ ${autoSettings.standbyTime}min standby`;
+              modeElement.innerHTML = `🔧 Automático | ⏰ ${autoSettings.startTime}-${autoSettings.endTime} | 🌡️ ${autoSettings.temp}°C | ⏸️ ${autoSettings.standby}min standby`;
             }
           } else {
-            if (isActive && remaining.remaining > 0) {
-              const mins = Math.ceil(remaining.remaining / 60);
-              modeElement.innerHTML = `⏱️ Manual | ⏰ Desliga em ${mins}min`;
-            } else {
-              modeElement.innerHTML = `⏱️ Manual`;
-            }
+            modeElement.innerHTML = `⏱️ Manual`;
           }
 
         }).catch(console.error);
@@ -492,6 +558,8 @@
           } else {
             clearCountdown();
           }
+          // NOVO: confirma com a placa logo apos o clique (sem esperar os 3s)
+          updateSmartStatus();
         } catch (error) {
           updateStatusUI(`Erro ao ${action === 'start' ? 'ligar' : 'desligar'} ventilador`);
         }
@@ -502,11 +570,12 @@
         STATE.remainingSeconds = seconds;
         const totalSeconds = seconds;
 
+        document.getElementById('countdownSection').style.display = 'block';
         if (ELEMENTS.progressBar) {
           ELEMENTS.progressBar.classList.add('progress-bar-animated');
         }
 
-        STATE.countdownInterval = setInterval(() => {
+        const tick = () => {
           if (STATE.remainingSeconds <= 0) {
             clearCountdown();
             updateStatusUI("Ventilador Desligado");
@@ -530,11 +599,15 @@
           }
 
           STATE.remainingSeconds--;
-        }, 1000);
+        };
+        tick(); // NOVO: mostra imediatamente, sem esperar 1s
+        STATE.countdownInterval = setInterval(tick, 1000);
       };
 
       const clearCountdown = () => {
         clearInterval(STATE.countdownInterval);
+        STATE.countdownInterval = null;
+        document.getElementById('countdownSection').style.display = 'none';
         updateElement(ELEMENTS.countdown, '');
         if (ELEMENTS.progressBar) {
           ELEMENTS.progressBar.style.width = "0%";
@@ -547,41 +620,62 @@
         if (!ELEMENTS.autoModeToggle || !ELEMENTS.autoSettings) return;
 
         const sendAutoSettings = () => {
+          // CORRIGIDO: padroes iguais aos do firmware (RelayManager.h)
           const settings = {
             active: ELEMENTS.autoModeToggle.checked,
-            temp: parseFloat(document.getElementById('autoTemp').value) || 31,
+            temp: parseFloat(document.getElementById('autoTemp').value) || 30,
             ventTime: parseInt(document.getElementById('ventilationTime').value) || 15,
             standby: parseInt(document.getElementById('standbyTime').value) || 30,
-            startTime: document.getElementById('autoStartTime').value || "05:00",
-            endTime: document.getElementById('autoEndTime').value || "22:00"
+            startTime: document.getElementById('autoStartTime').value || "21:00",
+            endTime: document.getElementById('autoEndTime').value || "05:00"
           };
 
+          setSaveStatus('Salvando...', 'text-muted');
           fetchData('/set-auto-settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings)
+          }).then(() => {
+            setSaveStatus('Salvo ✔', 'text-success');
+            updateSmartStatus(); // reflete na hora (ex.: cancela o timer manual)
           }).catch(() => {
-            ELEMENTS.autoModeToggle.checked = !ELEMENTS.autoModeToggle.checked;
+            setSaveStatus('Erro ao salvar', 'text-danger');
           });
         };
 
+        const saveStatus = document.getElementById('autoSaveStatus');
+        const setSaveStatus = (text, cls) => { saveStatus.textContent = text; saveStatus.className = cls; };
+
+        // Liga/desliga o modo automatico (envia tambem os valores atuais dos campos)
         ELEMENTS.autoModeToggle.addEventListener('change', () => {
           ELEMENTS.autoSettings.style.display = ELEMENTS.autoModeToggle.checked ? 'block' : 'none';
           sendAutoSettings();
         });
 
+        // NOVO: botao para salvar as configuracoes sem precisar desligar/ligar
+        document.getElementById('saveAutoSettings').addEventListener('click', () => {
+          sendAutoSettings();
+        });
+
+        // Avisa quando ha alteracoes ainda nao salvas
+        ['autoTemp', 'ventilationTime', 'standbyTime', 'autoStartTime', 'autoEndTime'].forEach(id => {
+          document.getElementById(id)?.addEventListener('input', () => {
+            setSaveStatus('Alterações não salvas', 'text-warning');
+          });
+        });
+
         // Carrega configurações iniciais
+        // CORRIGIDO: carrega os valores salvos mesmo com o modo desligado
+        // (antes o formulario mostrava valores que nao eram os da placa)
         fetchData('/get-auto-settings')
           .then(settings => {
-            if (settings.active) {
-              ELEMENTS.autoModeToggle.checked = true;
-              ELEMENTS.autoSettings.style.display = 'block';
-              document.getElementById('autoTemp').value = settings.temp || 31;
-              document.getElementById('ventilationTime').value = settings.ventTime || 15;
-              document.getElementById('standbyTime').value = settings.standby || 10;
-              document.getElementById('autoStartTime').value = settings.startTime || "05:00";
-              document.getElementById('autoEndTime').value = settings.endTime || "22:00";
-            }
+            ELEMENTS.autoModeToggle.checked = !!settings.active;
+            ELEMENTS.autoSettings.style.display = settings.active ? 'block' : 'none';
+            document.getElementById('autoTemp').value = settings.temp ?? 30;
+            document.getElementById('ventilationTime').value = settings.ventTime ?? 15;
+            document.getElementById('standbyTime').value = settings.standby ?? 30;
+            document.getElementById('autoStartTime').value = settings.startTime || "21:00";
+            document.getElementById('autoEndTime').value = settings.endTime || "05:00";
           })
           .catch(console.error);
       };
@@ -601,6 +695,10 @@
 
       // WiFi
       const configureWiFi = () => {
+        // CORRIGIDO: explica o que acontece antes de abrir o portal
+        if (!confirm('Trocar a rede Wi-Fi?\n\nA placa vai SAIR da rede atual e criar a rede "ESP32-Config".\n' +
+                     'Conecte-se a ela e abra 192.168.4.1 para escolher a nova rede.\n' +
+                     'O ventilador será desligado. Se nada for feito, a placa volta sozinha em até 3 minutos.')) return;
         const statusElement = document.createElement('div');
         statusElement.id = 'portalStatus';
         statusElement.innerHTML = '<i class="fas fa-cog fa-spin me-2"></i> Preparando portal de configuração...';
@@ -608,14 +706,15 @@
 
         fetchData('/wificonfig', { parseText: true })
           .then(message => {
-            let countdown = 10;
-            const interval = setInterval(() => {
-              statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message} Recarregando em ${countdown--}s...`;
-              if (countdown < 0) {
-                clearInterval(interval);
-                window.location.reload();
-              }
-            }, 1000);
+            // CORRIGIDO: a placa sai da rede, entao recarregar em 10s so dava erro
+            statusElement.className = 'alert alert-warning text-center';
+            statusElement.innerHTML = `<i class="fas fa-wifi me-2"></i> ${message}.<br>` +
+              'Quando terminar (ou após 3 minutos), volte para a sua rede e abra ' +
+              '<a href="http://esp32.local">http://esp32.local</a>.';
+          })
+          .catch(() => {
+            statusElement.className = 'alert alert-danger text-center';
+            statusElement.textContent = 'Não foi possível abrir o portal Wi-Fi.';
           });
       };
 
@@ -633,6 +732,7 @@
         updateTime();
         updateSensorData();
         setupAutoMode();
+        updateSmartStatus(); // CORRIGIDO: retoma a contagem regressiva ao abrir a pagina
 
         // Configura atualizações periódicas
         setInterval(updateSensorData, 60000);
@@ -641,12 +741,19 @@
 
       // Funções globais
       window.startRelay = () => {
-        const hours = parseInt(ELEMENTS.hours?.value) || 0;
-        const minutes = parseInt(ELEMENTS.minutes?.value) || 5;
+        // CORRIGIDO: "|| 5" transformava 0 minutos em 5 (1h 0min virava 1h 5min)
+        const toInt = v => { const n = parseInt(v, 10); return Number.isNaN(n) ? 0 : n; };
+        const hours = toInt(ELEMENTS.hours?.value);
+        const minutes = toInt(ELEMENTS.minutes?.value);
         const totalMinutes = hours * 60 + minutes;
 
         if (totalMinutes <= 0) {
           alert("Por favor, insira um tempo válido");
+          return;
+        }
+        // O firmware aceita no maximo 1440 min (24h) em /start
+        if (totalMinutes > 1440) {
+          alert("O tempo máximo é 24 horas.");
           return;
         }
 
@@ -670,6 +777,54 @@
             document.getElementById('systemInfo').innerHTML = html;
           });
       }
+
+      // NOVO: informacoes da placa e troca da senha do OTA
+      function refreshDeviceInfo() {
+        fetch('/device-info')
+          .then(r => r.json())
+          .then(d => {
+            document.getElementById('devSsid').textContent = d.ssid || '--';
+            document.getElementById('devIp').textContent = d.ip || '--';
+            document.getElementById('devHost').textContent = d.hostname || 'esp32.local';
+            document.getElementById('devFirmware').textContent = d.firmware || '--';
+            const q = d.rssi >= -60 ? 'bom' : d.rssi >= -75 ? 'razoável' : 'fraco';
+            document.getElementById('devRssi').textContent = `${d.rssi} dBm (${q})`;
+            document.getElementById('otaDefaultWarning').style.display = d.otaDefaultPassword ? 'block' : 'none';
+          })
+          .catch(console.error);
+      }
+
+      document.getElementById('saveOtaPassword').addEventListener('click', async () => {
+        const status = document.getElementById('otaSaveStatus');
+        const set = (t, c) => { status.textContent = t; status.className = c; };
+        const current = document.getElementById('otaCurrent').value;
+        const novo = document.getElementById('otaNew').value;
+        const confirma = document.getElementById('otaConfirm').value;
+        if (!current || !novo) return set('Preencha a senha atual e a nova.', 'text-danger');
+        if (novo.length < 4 || novo.length > 32) return set('A nova senha precisa ter de 4 a 32 caracteres.', 'text-danger');
+        if (novo !== confirma) return set('A confirmação não bate com a nova senha.', 'text-danger');
+        set('Salvando...', 'text-muted');
+        try {
+          const r = await fetch('/set-ota-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current, new: novo })
+          });
+          const msg = await r.text();
+          if (r.ok) {
+            set(msg + ' Lembre de atualizar o ota_senha.ini no PC.', 'text-success');
+            ['otaCurrent', 'otaNew', 'otaConfirm'].forEach(id => document.getElementById(id).value = '');
+            refreshDeviceInfo();
+          } else {
+            set(msg, 'text-danger');
+          }
+        } catch (e) {
+          set('Erro de comunicação com a placa.', 'text-danger');
+        }
+      });
+
+      refreshDeviceInfo();
+      setInterval(refreshDeviceInfo, 30000);
 
       // Atualiza automaticamente a cada 30 segundos
       setInterval(refreshSystemInfo, 30000);
@@ -712,12 +867,14 @@
           .then(response => response.json())
           .then(data => {
             // Atualiza os elementos da div de Dados do Ambiente
-            document.getElementById('currentTemp').innerText = data.temp?.toFixed(1) || '--';
-            document.getElementById('currentHumidity').innerText = data.humidity?.toFixed(1) || '--';
-            document.getElementById('currentFeelsLike').innerText = data.feelsLike?.toFixed(1) || '--';
+            const fmt = (v, unit) => (typeof v === 'number') ? `${v.toFixed(1)}${unit}` : '--';
+            document.getElementById('currentTemp').innerText = fmt(data.temp, '°C');
+            document.getElementById('currentHumidity').innerText = fmt(data.humidity, '%');
+            document.getElementById('currentFeelsLike').innerText = fmt(data.feelsLike, '°C');
 
             // Atualiza a mensagem de status
-            if (data.temp && data.humidity) {
+            // CORRIGIDO: 0 °C era tratado como "sem sinal"
+            if (!data.error && typeof data.temp === 'number' && typeof data.humidity === 'number') {
               document.getElementById('sensorStatus').innerText = 'Dados atualizados com sucesso.';
               document.getElementById('sensorStatus').className = 'mt-3 text-center text-success';
             } else {
