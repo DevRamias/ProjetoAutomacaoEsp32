@@ -1,0 +1,76 @@
+# ===== PlatformIO =====
+.pio/
+.pioenvs/
+.piolibdeps/
+.vscode/
+
+# ===== Arduino IDE (caso ainda use em paralelo) =====
+build/
+*.hex
+*.bin
+*.elf
+*.map
+
+# ===== Sistema Operacional =====
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ===== Editores =====
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# JetBrains (CLion, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+.#*
+\#*\#
+
+# ===== Logs e temporários =====
+*.log
+*.tmp
+*.bak
+*.orig
+
+# ===== Segredos (nunca subir) =====
+secrets.h
+credentials.h
+*.secret
+.env
+.env.local
+
+# ===== Build artifacts específicos do ESP32 =====
+firmware.bin
+firmware.elf
+firmware.map
+spiffs.bin
+littlefs.bin
+
+# ===== Pastas locais de teste =====
+test/output/
+docs/build/

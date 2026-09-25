@@ -8,14 +8,17 @@ void OTAManager::begin(const char* hostname, const char* password) {
     if (hostname) {
         ArduinoOTA.setHostname(hostname);
     }
-    
-    if (password) {
+
+    if (password && strlen(password) > 0) {
         ArduinoOTA.setPassword(password);
+        Serial.println("OTA com senha configurada.");
+    } else {
+        Serial.println("AVISO: OTA sem senha! Qualquer um na rede pode atualizar.");
     }
 
     configureOTAEvents();
     ArduinoOTA.begin();
-    
+
     Serial.println("OTA Configurado");
     Serial.print("Hostname: ");
     Serial.println(hostname ? hostname : WiFi.getHostname());

@@ -70,7 +70,7 @@ void WebServerManager::handleSetAutoSettings() {
       return;
     }
     
-    DynamicJsonDocument doc(256);
+    JsonDocument doc;
     deserializeJson(doc, server.arg("plain"));
     
     // Cria estrutura AutoSettings com dados do JSON
@@ -92,7 +92,7 @@ void WebServerManager::handleGetAutoSettings() {
     // Pega as configuracoes diretamente do RelayManager
     AutoSettings settings = relayManager->getAutoSettings();
     
-    DynamicJsonDocument doc(256);
+    JsonDocument doc;
     doc["active"] = settings.active;
     doc["temp"] = settings.minTemp;
     doc["ventTime"] = settings.ventTime;
@@ -148,7 +148,7 @@ void WebServerManager::handleWiFiConfig() {
 }
 
 void WebServerManager::handleRemaining() {
-  DynamicJsonDocument doc(100);
+  JsonDocument doc;
   if (relayManager->isActive() && !relayManager->isAutoCycleActive()) {
     unsigned long elapsed = millis() - relayManager->getStartTime();
     doc["remaining"] = (relayManager->getDuration() - elapsed) / 1000;
@@ -161,14 +161,16 @@ void WebServerManager::handleRemaining() {
 }
 
 void WebServerManager::handleSensorData() {
-    DynamicJsonDocument doc(200);
+    JsonDocument doc;
     float temp = this->dhtManager->readTemperature();
     float humidity = this->dhtManager->readHumidity();
     
     if (!isnan(temp) && !isnan(humidity)) {
       doc["temp"] = temp;
       doc["humidity"] = humidity;
-      doc["feelsLike"] = temp + (humidity * 0.1f);
+      // CORRIGIDO: era 'temp + (humidity * 0.1f)' (formula sem base fisica).
+      // Agora usa o indice de calor padrao NWS/NOAA (Rothfusz).
+      doc["feelsLike"] = DHTManager::heatIndex(temp, humidity);
       doc["lastUpdate"] = this->dhtManager->getLastReadingTime() / 1000;
     } else {
       doc["error"] = "Erro na leitura do sensor";
@@ -194,7 +196,7 @@ void WebServerManager::handleSensorData() {
 }
 
 void WebServerManager::handleSystemInfo() {
-    DynamicJsonDocument doc(256);
+    JsonDocument doc;
     uint32_t freeHeap = ESP.getFreeHeap();
     uint32_t maxBlock = ESP.getMaxAllocHeap();
     doc["memory"]["free"] = freeHeap;
@@ -217,7 +219,7 @@ void WebServerManager::logMemoryUsage() {
 }
 
 void WebServerManager::handleFlashInfo() {
-  DynamicJsonDocument doc(256);
+  JsonDocument doc;
   size_t flash_size;
   #if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR >= 4
     flash_size = ESP.getFlashChipSize();

@@ -184,7 +184,7 @@ void RelayManager::loadAutoSettings() {
     return;
   }
 
-  DynamicJsonDocument doc(512);
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, file);
   file.close();
 
@@ -210,7 +210,7 @@ void RelayManager::saveAutoSettings() {
     return;
   }
 
-  DynamicJsonDocument doc(512);
+  JsonDocument doc;
   doc["active"] = _autoSettings.active;
   doc["minTemp"] = _autoSettings.minTemp;
   doc["ventTime"] = _autoSettings.ventTime;
