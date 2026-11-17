@@ -18,6 +18,9 @@ Este projeto segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/) 
 - **Modo automático com o relógio errado:** logo após ligar, antes de pegar a hora da internet, o relógio marcava ~21:00 e o automático podia ligar o ventilador fora do horário. Agora ele espera a hora verdadeira. O horário também passou a ser conferido a cada 1 s (antes a cada 30 s).
 - **Envio do HTML deixava o painel em branco:** com páginas grandes (~48 KB) faltava memória, o firmware gravava o `index.html` vazio e respondia "sucesso". Agora o envio grava em pedaços num arquivo temporário e só troca a página se ela chegar completa.
 
+- **Campos de tempo do controle manual:** apagar tudo e digitar de novo virava "025"; agora o campo pode ficar vazio enquanto se digita e zeros à esquerda somem.
+- **Compilação no GitHub Actions:** a versão da plataforma ficou fixa (`espressif32@7.1.3`, core 2.0.17). Sem isso a nuvem baixou o core 3.x (lançado em 16/11/2026), que muda a API do servidor web e a autenticação do OTA.
+
 ### Adicionado
 - Rota `/state` e testes de regressão (`testes/teste_regressao.py`) para OTA, portal Wi-Fi, mDNS, rotas, modo automático e envio do HTML.
 

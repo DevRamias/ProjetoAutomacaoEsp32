@@ -153,6 +153,9 @@ def teste_estatico():
     checar(re.search(r"upload_flags\s*=\s*--auth=\$\{ota\.password\}", ini), "esp32ota envia a senha (--auth)")
     checar(re.search(r"extra_configs\s*=\s*ota_senha\.ini", ini), "senha local vem de ota_senha.ini")
     checar(re.search(r"board_build\.filesystem\s*=\s*littlefs", ini), "sistema de arquivos continua LittleFS")
+    checar(re.search(r"^\s*platform\s*=\s*espressif32@\d+\.\d+\.\d+\s*$", ini, flags=re.M),
+           "versao da plataforma fixada (core novo pode mudar a API e o OTA)",
+           "platform sem versao fixa: o PlatformIO/Actions pode baixar outro core e quebrar a compilacao ou o OTA")
     # Trocar a tabela de particoes NAO funciona por OTA (exige cabo). Avisa se aparecer.
     checar(not re.search(r"^\s*board_build\.partitions", ini, flags=re.M),
            "tabela de particoes nao foi alterada (mudanca de particao exige cabo USB)",
