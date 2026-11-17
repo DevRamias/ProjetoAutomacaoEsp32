@@ -55,7 +55,6 @@ O objetivo é criar um módulo autônomo capaz de conectar-se automaticamente à
 - **Bibliotecas:** instaladas e atualizadas automaticamente pelo PlatformIO, declaradas em `lib_deps` no `platformio.ini`:
   - ArduinoJson
   - WiFiManager
-  - NTPClient
   - DHT sensor library + Adafruit Unified Sensor
 
 > Credenciais não ficam no código: a rede Wi-Fi é configurada pelo portal do WiFiManager e a senha do OTA pelo painel web (card **Configurações da Placa**). No PC, a senha usada para gravar fica no arquivo local `ota_senha.ini`, que está no `.gitignore`.
@@ -136,7 +135,17 @@ ProjetoAutomacaoEsp32/                 # abra ESTA pasta no VS Code
 | `/wificonfig` | GET | Abre o portal de configuração Wi-Fi |
 | `/get-auto-settings` | GET | Configurações do modo automático |
 | `/set-auto-settings` | POST | Salva o modo automático |
-| `/upload-html` | POST | Substitui o `index.html` do LittleFS |
+| `/upload-html` | POST | Substitui o `index.html` do LittleFS (recebe em pedaços; só troca se chegar completo) |
+| `/state` | GET | Tudo que o painel atualiza (hora, relé, timer, modo automático e sensor) numa requisição só |
+
+### 🧪 Testes de regressão
+
+```bash
+python testes/teste_regressao.py estatico          # confere o código (roda também no GitHub Actions)
+python testes/teste_regressao.py placa             # testa a placa na rede, só leituras
+python testes/teste_regressao.py placa --testar-upload   # envia o data/index.html e confere
+python testes/teste_regressao.py placa --testar-portal   # ABRE o portal Wi-Fi (ventilador desliga, até 3 min)
+```
 
 ---
 

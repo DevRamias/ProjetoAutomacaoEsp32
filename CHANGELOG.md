@@ -2,6 +2,25 @@
 
 Este projeto segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/) (`MAIOR.MENOR.CORREÇÃO`).
 
+## [Não lançado]
+
+### Desempenho
+- **Painel ~25x mais rápido** (de ~1 s para ~40 ms por requisição): a biblioteca NTPClient travava o `loop()` por até 1 s a cada tentativa e, quando o servidor de hora não respondia, tentava de novo em toda volta. Trocada pelo SNTP nativo do ESP32, que sincroniza em segundo plano.
+- **Economia de energia do Wi-Fi** ligada por padrão; desliga só enquanto alguém usa o painel e religa após 60 s sem requisições.
+- Painel faz **uma** requisição (`/state`) a cada 5 s em vez de ~2 por segundo, e para de atualizar com a aba/tela escondida. O relógio da página conta os segundos sozinho.
+- Painel **não depende mais da internet**: o CSS necessário do Bootstrap está embutido e os ícones (gerados no Gemini) vão numa folha WebP dentro do próprio `index.html`.
+
+### Visual
+- Novo visual do painel: ícones em gradiente violeta/ciano, título e valores no mesmo gradiente, cartões arredondados com sombra, detalhes do status em etiquetas com ícone, controle automático compacto e tema escuro revisado.
+- `/flash-info` guarda o espaço usado do LittleFS em cache (calcular levava ~0,5 s).
+
+### Corrigido
+- **Modo automático com o relógio errado:** logo após ligar, antes de pegar a hora da internet, o relógio marcava ~21:00 e o automático podia ligar o ventilador fora do horário. Agora ele espera a hora verdadeira. O horário também passou a ser conferido a cada 1 s (antes a cada 30 s).
+- **Envio do HTML deixava o painel em branco:** com páginas grandes (~48 KB) faltava memória, o firmware gravava o `index.html` vazio e respondia "sucesso". Agora o envio grava em pedaços num arquivo temporário e só troca a página se ela chegar completa.
+
+### Adicionado
+- Rota `/state` e testes de regressão (`testes/teste_regressao.py`) para OTA, portal Wi-Fi, mDNS, rotas, modo automático e envio do HTML.
+
 ## [v2.1.0] — 2026-09-25
 
 ### ⚠️ Atenção ao atualizar

@@ -77,9 +77,14 @@ private:
     // ADICIONADO: Cache para otimização
     mutable bool _lastTimeCheckResult;
     mutable unsigned long _lastTimeCheck;
-    
+    mutable bool _timeCheckLogged = false;
+
     // NOVO: Verificação de horários
     bool isWithinActiveHours() const;
+
+public:
+    // true quando o relogio ja tem a hora da internet (o automatico so age assim)
+    bool isTimeSynced() const;
 };
 
 #endif

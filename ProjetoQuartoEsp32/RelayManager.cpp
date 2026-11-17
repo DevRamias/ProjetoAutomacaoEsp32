@@ -259,46 +259,54 @@ void RelayManager::saveAutoSettings() {
 // NOVO: Verificação de Horários com cache
 
 bool RelayManager::isWithinActiveHours() const {
-  // Verifica a cada 30 segundos (cache)
-  if (millis() - _lastTimeCheck < 30000) {
+  // Verifica a cada 1 segundo: o automatico liga/desliga no minuto certo.
+  // (Antes era a cada 30 s, o que podia atrasar ate 30 s.)
+  if (_lastTimeCheck != 0 && millis() - _lastTimeCheck < 1000) {
     return _lastTimeCheckResult;
   }
-
   _lastTimeCheck = millis();
 
+  bool result;
+  String currentTime = "--:--";
+
   if (!_ntpManager) {
-    Serial.println("Aviso: NTPManager nao configurado. Considerando dentro do horario.");
-    _lastTimeCheckResult = true;
-    return true;
-  }
-
-  String currentTime = _ntpManager->getFormattedTime();
-  if (currentTime.length() >= 5) {
-    currentTime = currentTime.substring(0, 5); // Pega HH:MM
+    result = true;  // sem relogio configurado: comportamento antigo
+  } else if (!_ntpManager->isSynced()) {
+    // CORRIGIDO: logo depois de ligar, antes de pegar a hora da internet, o
+    // relogio marca ~21:00 (contado a partir de 1970). Com o horario padrao
+    // 21:00-05:00 isso fazia o automatico ligar o ventilador em qualquer hora
+    // do dia por alguns instantes. Agora ele espera a hora verdadeira.
+    result = false;
+    currentTime = "sem hora";
   } else {
-    Serial.println("Erro: Formato de hora invalido");
-    _lastTimeCheckResult = true;
-    return true;
+    currentTime = _ntpManager->getFormattedTime().substring(0, 5); // HH:MM
+    if (_autoSettings.startTime <= _autoSettings.endTime) {
+      // Periodo normal (nao cruza meia-noite)
+      result = (currentTime >= _autoSettings.startTime &&
+                currentTime <= _autoSettings.endTime);
+    } else {
+      // Periodo que cruza meia-noite (21:00-05:00)
+      result = (currentTime >= _autoSettings.startTime ||
+                currentTime <= _autoSettings.endTime);
+    }
   }
 
-  // Lógica para período que cruza a meia-noite (21:00-05:00)
-  if (_autoSettings.startTime <= _autoSettings.endTime) {
-    // Período normal (não cruza meia-noite)
-    _lastTimeCheckResult = (currentTime >= _autoSettings.startTime && 
-                           currentTime <= _autoSettings.endTime);
-  } else {
-    // Período que cruza meia-noite (21:00-05:00)
-    _lastTimeCheckResult = (currentTime >= _autoSettings.startTime || 
-                           currentTime <= _autoSettings.endTime);
+  // So escreve no Serial quando muda (checar a cada 1 s geraria muito log)
+  if (result != _lastTimeCheckResult || !_timeCheckLogged) {
+    Serial.printf("[HORARIO] %s - %s a %s: %s\n",
+                  currentTime.c_str(),
+                  _autoSettings.startTime.c_str(),
+                  _autoSettings.endTime.c_str(),
+                  result ? "DENTRO" : "FORA");
+    _timeCheckLogged = true;
   }
 
-  Serial.printf("[HORARIO] %s - %s a %s: %s\n", 
-                currentTime.c_str(),
-                _autoSettings.startTime.c_str(),
-                _autoSettings.endTime.c_str(),
-                _lastTimeCheckResult ? "DENTRO" : "FORA");
+  _lastTimeCheckResult = result;
+  return result;
+}
 
-  return _lastTimeCheckResult;
+bool RelayManager::isTimeSynced() const {
+  return _ntpManager == nullptr || _ntpManager->isSynced();
 }
 
 // --- Métodos de Status ---

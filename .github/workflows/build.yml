@@ -39,6 +39,10 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Testes de regressao (OTA, portal Wi-Fi, rotas)
+        # Confere no codigo-fonte que nada importante sumiu. Nao precisa da placa.
+        run: python testes/teste_regressao.py estatico
+
       - name: Instalar PlatformIO
         run: pip install --upgrade platformio
 

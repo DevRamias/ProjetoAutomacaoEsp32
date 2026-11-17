@@ -37,6 +37,21 @@ const r=await fetch("/reset-html",{method:"POST"});msg(await r.text());}
 </script></body></html>
 )rawliteral";
 
+// Handler "invisivel": o WebServer pergunta a ele se atende cada requisicao.
+// Ele so anota que houve atividade e responde "nao", deixando a requisicao
+// seguir para a rota certa.
+class ActivityHandler : public RequestHandler {
+public:
+  explicit ActivityHandler(WebServerManager* manager) : _manager(manager) {}
+  bool canHandle(HTTPMethod method, String uri) override {
+    (void) method; (void) uri;
+    _manager->markActivity();
+    return false;
+  }
+private:
+  WebServerManager* _manager;
+};
+
 void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager) {
   this->relayManager = relayManager;
   this->ntpManager = ntpManager;
@@ -45,6 +60,15 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
 
   this->shouldStartPortal = false;
   this->_lastMemoryLog = 0;
+
+  // Comeca economizando energia; a primeira requisicao desliga a economia.
+  WiFi.setSleep(true);
+  _fastWiFi = false;
+
+  // Observador de atividade: TEM que ser o primeiro handler registrado, para
+  // ser consultado em toda requisicao. Ele nunca responde nada (retorna false),
+  // entao as rotas abaixo continuam funcionando exatamente como antes.
+  server.addHandler(new ActivityHandler(this));
 
   // Configuracao de rotas
   server.on("/", HTTP_GET, std::bind(&WebServerManager::handleRoot, this));
@@ -57,7 +81,9 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   server.on("/system", HTTP_GET, std::bind(&WebServerManager::handleSystemInfo, this));
   server.on("/flash-info", HTTP_GET, std::bind(&WebServerManager::handleFlashInfo, this));
   server.on("/sensor-data", HTTP_GET, std::bind(&WebServerManager::handleSensorData, this));
-  server.on("/upload-html", HTTP_POST, std::bind(&WebServerManager::handleUpload, this));
+  // 2o handler: recebe o corpo em pedacos direto para o arquivo (sem RAM)
+  server.on("/upload-html", HTTP_POST, std::bind(&WebServerManager::handleUpload, this),
+            std::bind(&WebServerManager::handleUploadRaw, this));
   // Recuperacao: pagina embutida no firmware (sempre funciona) e rota que apaga o /index.html
   server.on("/recovery", HTTP_GET, std::bind(&WebServerManager::handleRecovery, this));
   server.on("/reset-html", HTTP_ANY, std::bind(&WebServerManager::handleResetHtml, this));
@@ -66,6 +92,8 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   server.on("/device-info", HTTP_GET, std::bind(&WebServerManager::handleDeviceInfo, this));
   server.on("/set-auto-settings", HTTP_POST, std::bind(&WebServerManager::handleSetAutoSettings, this));
   server.on("/get-auto-settings", HTTP_GET, std::bind(&WebServerManager::handleGetAutoSettings, this));
+  // Tudo que o painel precisa a cada poucos segundos, numa requisicao so
+  server.on("/state", HTTP_GET, std::bind(&WebServerManager::handleState, this));
 
   server.begin();
   Serial.println("Servidor web iniciado!");
@@ -92,9 +120,30 @@ void WebServerManager::handleClient() {
     server.stop();
     wifiManager->startConfigPortal("ESP32-Config");
     server.begin();
+    // O portal mexe no Wi-Fi; volta para o modo economico padrao
+    WiFi.setSleep(true);
+    _fastWiFi = false;
   }
-  
+
   server.handleClient();
+  updatePowerSave();
+}
+
+void WebServerManager::markActivity() {
+  _lastActivity = millis();
+  if (!_fastWiFi) {
+    WiFi.setSleep(false);
+    _fastWiFi = true;
+    Serial.println("[WIFI] Painel em uso: economia de energia desligada.");
+  }
+}
+
+void WebServerManager::updatePowerSave() {
+  if (_fastWiFi && millis() - _lastActivity > FAST_WIFI_MS) {
+    WiFi.setSleep(true);
+    _fastWiFi = false;
+    Serial.println("[WIFI] Painel parado: economia de energia ligada.");
+  }
 }
 
 // --- Implementacao dos Handlers ---
@@ -164,6 +213,7 @@ void WebServerManager::handleResetHtml() {
     return;
   }
   if (LittleFS.remove("/index.html")) {
+    invalidateFsCache();
     Serial.println("[WEB] /index.html apagado; usando a pagina do firmware.");
     server.send(200, "text/plain", "Pagina salva apagada! A pagina principal agora e a do firmware.");
   } else {
@@ -236,17 +286,59 @@ void WebServerManager::handleWiFiConfig() {
   server.send(200, "text/plain", "Portal WiFi iniciado. Conecte-se a rede 'ESP32-Config' e abra 192.168.4.1");
 }
 
-void WebServerManager::handleRemaining() {
-  JsonDocument doc;
+// Segundos restantes do timer MANUAL (0 se nao houver timer manual rodando)
+unsigned long WebServerManager::remainingSeconds() {
   // CORRIGIDO: so informa tempo quando ha timer MANUAL rodando, e protege
   // contra conta negativa (unsigned) que virava um numero gigante.
   if (relayManager->isManualActive() && relayManager->isActive()) {
     unsigned long elapsed = millis() - relayManager->getStartTime();
     unsigned long duration = relayManager->getDuration();
-    doc["remaining"] = (elapsed < duration) ? (duration - elapsed) / 1000 : 0;
-  } else {
-    doc["remaining"] = 0;
+    return (elapsed < duration) ? (duration - elapsed) / 1000 : 0;
   }
+  return 0;
+}
+
+// Estado completo para o painel. Substitui /time + /status + /remaining +
+// /get-auto-settings + /sensor-data (as rotas antigas continuam existindo).
+void WebServerManager::handleState() {
+  JsonDocument doc;
+  doc["time"] = ntpManager->getFormattedTime();
+  doc["synced"] = relayManager->isTimeSynced();
+  bool ligado = relayManager->isActive();
+  doc["on"] = ligado;
+  doc["status"] = ligado ? "Ventilador Ligado" : "Ventilador Desligado";
+  doc["remaining"] = remainingSeconds();
+
+  AutoSettings s = relayManager->getAutoSettings();
+  JsonObject a = doc["auto"].to<JsonObject>();
+  a["active"] = s.active;
+  a["temp"] = s.minTemp;
+  a["ventTime"] = s.ventTime;
+  a["standby"] = s.standbyTime;
+  a["startTime"] = s.startTime;
+  a["endTime"] = s.endTime;
+
+  // Usa o cache do sensor (o DHT so e lido de novo a cada 15 s)
+  JsonObject sensor = doc["sensor"].to<JsonObject>();
+  float temp = dhtManager->readTemperature();
+  float humidity = dhtManager->readHumidity();
+  if (!isnan(temp) && !isnan(humidity)) {
+    sensor["temp"] = temp;
+    sensor["humidity"] = humidity;
+    sensor["feelsLike"] = DHTManager::heatIndex(temp, humidity);
+    sensor["lastUpdate"] = dhtManager->getLastReadingTime() / 1000;
+  } else {
+    sensor["error"] = "Erro na leitura do sensor";
+  }
+
+  String jsonStr;
+  serializeJson(doc, jsonStr);
+  server.send(200, "application/json", jsonStr);
+}
+
+void WebServerManager::handleRemaining() {
+  JsonDocument doc;
+  doc["remaining"] = remainingSeconds();
   String jsonStr;
   serializeJson(doc, jsonStr);
   server.send(200, "application/json", jsonStr);
@@ -272,19 +364,73 @@ void WebServerManager::handleSensorData() {
     server.send(200, "application/json", jsonStr);
 }
 
-  void WebServerManager::handleUpload() {
-    if (server.hasArg("plain")) {
-      File file = LittleFS.open("/index.html", "w");
-      if (!file) {
-        server.send(500, "text/plain", "Erro ao abrir o arquivo para escrita.");
-        return;
+// ---------------------------------------------------------------------------
+// Envio do index.html
+// CORRIGIDO: antes o HTML inteiro ia para a RAM (duas copias) e, se faltasse
+// memoria, a copia vinha VAZIA sem aviso: o /index.html era apagado e gravado
+// com 0 bytes, deixando o painel em branco (aconteceu com uma pagina de 48 KB).
+// Agora:
+//   1) o corpo chega em pedacos de ~1,4 KB e vai direto para /index.tmp;
+//   2) so se o tamanho recebido bater com o enviado, o temporario substitui o
+//      /index.html. Em qualquer falha a pagina atual continua intacta.
+// ---------------------------------------------------------------------------
+static const char* UPLOAD_TMP = "/index.tmp";
+
+void WebServerManager::handleUploadRaw() {
+  HTTPRaw& raw = server.raw();
+  switch (raw.status) {
+    case RAW_START:
+      _uploadFailed = false;
+      _uploadSize = 0;
+      LittleFS.remove(UPLOAD_TMP);
+      _uploadFile = LittleFS.open(UPLOAD_TMP, "w");
+      if (!_uploadFile) _uploadFailed = true;
+      break;
+    case RAW_WRITE:
+      if (!_uploadFailed && _uploadFile) {
+        size_t escrito = _uploadFile.write(raw.buf, raw.currentSize);
+        if (escrito != raw.currentSize) _uploadFailed = true;  // ex.: memoria cheia
+        _uploadSize += escrito;
       }
-      file.print(server.arg("plain"));
-      file.close();
-      server.send(200, "text/plain", "HTML atualizado com sucesso!");
-    } else {
-      server.send(400, "text/plain", "Nenhum dado recebido.");
+      break;
+    case RAW_END:
+      if (_uploadFile) _uploadFile.close();
+      break;
+    case RAW_ABORTED:
+      // Conexao caiu no meio: descarta o temporario, pagina atual intacta
+      if (_uploadFile) _uploadFile.close();
+      LittleFS.remove(UPLOAD_TMP);
+      _uploadFailed = true;
+      Serial.println("[WEB] Envio do HTML interrompido; pagina atual mantida.");
+      break;
+  }
+}
+
+void WebServerManager::handleUpload() {
+  size_t esperado = server.clientContentLength() > 0 ? (size_t) server.clientContentLength() : 0;
+  bool completo = !_uploadFailed && _uploadSize > 0 && _uploadSize == esperado;
+  _uploadFailed = false;
+
+  if (!completo) {
+    LittleFS.remove(UPLOAD_TMP);
+    Serial.printf("[WEB] Envio do HTML recusado (%u de %u bytes); pagina atual mantida.\n",
+                  (unsigned) _uploadSize, (unsigned) esperado);
+    server.send(esperado == 0 ? 400 : 500, "text/plain",
+                esperado == 0 ? "Nenhum dado recebido." : "Envio incompleto. A pagina atual foi mantida.");
+    return;
+  }
+
+  // Troca a pagina so agora, com o arquivo novo completo
+  if (!LittleFS.rename(UPLOAD_TMP, "/index.html")) {
+    LittleFS.remove("/index.html");
+    if (!LittleFS.rename(UPLOAD_TMP, "/index.html")) {
+      server.send(500, "text/plain", "Erro ao salvar o HTML. Use /recovery.");
+      return;
     }
+  }
+  invalidateFsCache();
+  Serial.printf("[WEB] index.html atualizado (%u bytes).\n", (unsigned) _uploadSize);
+  server.send(200, "text/plain", "HTML atualizado com sucesso!");
 }
 
 void WebServerManager::handleSystemInfo() {
@@ -310,6 +456,17 @@ void WebServerManager::logMemoryUsage() {
                free, ESP.getMinFreeHeap(), maxBlock, 100 - (maxBlock * 100 / free));
 }
 
+// LittleFS.usedBytes() percorre o sistema de arquivos (~0,5 s). Guarda o valor
+// por 5 min; enviar ou apagar o HTML invalida o cache na hora.
+size_t WebServerManager::fsUsedBytes() {
+  if (!_fsUsedValid || millis() - _fsUsedAt > 300000) {
+    _fsUsedCache = LittleFS.usedBytes();
+    _fsUsedAt = millis();
+    _fsUsedValid = true;
+  }
+  return _fsUsedCache;
+}
+
 void WebServerManager::handleFlashInfo() {
   JsonDocument doc;
   size_t flash_size;
@@ -322,8 +479,9 @@ void WebServerManager::handleFlashInfo() {
   doc["flash"]["used"] = ESP.getSketchSize();
   doc["flash"]["free"] = flash_size - ESP.getSketchSize();
   doc["fs"]["total"] = LittleFS.totalBytes();
-  doc["fs"]["used"] = LittleFS.usedBytes();
-  doc["fs"]["free"] = LittleFS.totalBytes() - LittleFS.usedBytes();
+  size_t fsUsed = fsUsedBytes();
+  doc["fs"]["used"] = fsUsed;
+  doc["fs"]["free"] = LittleFS.totalBytes() - fsUsed;
   String jsonStr;
   serializeJson(doc, jsonStr);
   server.send(200, "application/json", jsonStr);
