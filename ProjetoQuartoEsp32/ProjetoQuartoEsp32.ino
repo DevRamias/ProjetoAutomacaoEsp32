@@ -7,6 +7,7 @@
 #include "LittleFS.h"
 #include <ArduinoOTA.h>
 #include "OTAManager.h"
+#include "HistoryManager.h"
 #include <ArduinoJson.h>
 
 #define DHTPIN 4
@@ -22,6 +23,7 @@ RelayManager relayManager(5);
 DHTManager dhtManager(DHTPIN, DHTTYPE);
 WebServerManager webServerManager;
 OTAManager otaManager;
+HistoryManager historyManager;  // grafico das ultimas 24 h
 
 void setup() {
   Serial.begin(115200);
@@ -55,6 +57,8 @@ void setup() {
   relayManager.setNTPManager(&ntpManager);
   dhtManager.begin();  // CORRIGIDO: o DHT precisa ser inicializado antes de ser lido
   webServerManager.setOTAManager(&otaManager);
+  historyManager.begin(&dhtManager, &relayManager, &ntpManager);
+  webServerManager.setHistoryManager(&historyManager);
   webServerManager.begin(&relayManager, &ntpManager, &wifiManager, &dhtManager);
 
   // Configura OTA
@@ -79,4 +83,5 @@ void loop() {
   webServerManager.handleClient();
   ntpManager.update();
   relayManager.update(dhtManager.readTemperature());
+  historyManager.update();  // amostra a cada 5 min; salva a cada 30 min
 }

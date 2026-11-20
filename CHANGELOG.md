@@ -22,6 +22,7 @@ Este projeto segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/) 
 - **Compilação no GitHub Actions:** a versão da plataforma ficou fixa (`espressif32@7.1.3`, core 2.0.17). Sem isso a nuvem baixou o core 3.x (lançado em 16/11/2026), que muda a API do servidor web e a autenticação do OTA.
 
 ### Adicionado
+- **Gráfico das últimas 24 h** no painel (cartão "Histórico (24 h)"): temperatura no gradiente do painel, umidade, faixas quando o ventilador esteve ligado e linha do gatilho do automático. Desenhado em SVG pela própria página (sem internet). A placa guarda um ponto a cada 5 min na RAM (rota `/history`) e salva no LittleFS a cada 30 min, para não perder o histórico ao reiniciar ou atualizar.
 - Rota `/state` e testes de regressão (`testes/teste_regressao.py`) para OTA, portal Wi-Fi, mDNS, rotas, modo automático e envio do HTML.
 
 ## [v2.1.0] — 2026-09-25

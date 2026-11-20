@@ -112,6 +112,7 @@ ProjetoAutomacaoEsp32/                 # abra ESTA pasta no VS Code
 └── ProjetoQuartoEsp32/                # pasta do sketch (PlatformIO e Arduino IDE)
     ├── ProjetoQuartoEsp32.ino         # sketch principal (setup/loop)
     ├── DHTManager.h / .cpp            # leitura do DHT11 com cache
+    ├── HistoryManager.h / .cpp        # histórico de 24 h para o gráfico
     ├── NTPManager.h / .cpp            # data e hora via NTP
     ├── OTAManager.h / .cpp            # atualização OTA
     ├── RelayManager.h / .cpp          # relé: modo manual e automático
@@ -137,6 +138,7 @@ ProjetoAutomacaoEsp32/                 # abra ESTA pasta no VS Code
 | `/set-auto-settings` | POST | Salva o modo automático |
 | `/upload-html` | POST | Substitui o `index.html` do LittleFS (recebe em pedaços; só troca se chegar completo) |
 | `/state` | GET | Tudo que o painel atualiza (hora, relé, timer, modo automático e sensor) numa requisição só |
+| `/history` | GET | Últimas 24 h (um ponto a cada 5 min): horário, temperatura, umidade e se o ventilador ligou, para o gráfico do painel |
 
 ### 🧪 Testes de regressão
 

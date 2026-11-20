@@ -121,6 +121,7 @@ ROTAS = {
     "/set-auto-settings": "HTTP_POST",
     "/get-auto-settings": "HTTP_GET",
     "/state": "HTTP_GET",
+    "/history": "HTTP_GET",
 }
 
 
@@ -206,7 +207,7 @@ def teste_estatico():
     print("\n== Nada travando o loop ==")
     # O servidor so atende quando o loop gira. delay() nesses arquivos atrasa
     # todas as requisicoes (e o OTA).
-    for nome in ["WebServerManager.cpp", "RelayManager.cpp", "DHTManager.cpp", "NTPManager.cpp"]:
+    for nome in ["WebServerManager.cpp", "RelayManager.cpp", "DHTManager.cpp", "NTPManager.cpp", "HistoryManager.cpp"]:
         codigo = sem_comentarios(ler(nome))
         checar(not re.search(r"\bdelay\s*\(", codigo), f"{nome} sem delay()",
                f"{nome} tem delay(): trava o loop, o painel e o OTA")
@@ -232,6 +233,24 @@ def teste_estatico():
     checar(re.search(r"startTime\s*<=\s*_autoSettings\.endTime", janela) and
            re.search(r"currentTime\s*>=\s*_autoSettings\.startTime\s*\|\|", janela),
            "janela que cruza a meia-noite (ex.: 21:00-05:00) continua tratada")
+
+    print("\n== Historico (grafico das ultimas 24 h) ==")
+    hist = sem_comentarios(ler("HistoryManager.cpp"))
+    histh = sem_comentarios(ler("HistoryManager.h"))
+    checar("historyManager.update()" in loop, "loop() alimenta o historico (historyManager.update)")
+    checar(re.search(r"CAPACITY\s*=\s*288", histh) and re.search(r"STEP_SECONDS\s*=\s*300", histh),
+           "historico guarda 288 amostras de 5 min (24 h)")
+    checar("isSynced()" in hist, "historico so grava com a hora da internet")
+    salvar = re.search(r"SAVE_INTERVAL_MS\s*=\s*(\d+)UL\s*\*\s*60UL", histh)
+    checar(salvar and int(salvar.group(1)) >= 15,
+           f"historico salvo no LittleFS a cada {salvar.group(1) if salvar else '?'} min (poupa a flash)",
+           "historico salvo com muita frequencia (desgasta a flash)")
+    checar(re.search(r"LittleFS\.rename\(\s*HISTORY_TMP", hist), "historico salvo via temporario + rename")
+    pagina = (RAIZ / "ProjetoQuartoEsp32" / "data" / "index.html").read_text(encoding="utf-8")
+    checar("fetchData('/history')" in pagina and "every(fetchHistory" in pagina,
+           "painel busca /history ao abrir e periodicamente (pausa com a aba escondida)")
+    checar(not re.search(r"<script[^>]+src=|<link[^>]+href=[\"']https?:", pagina),
+           "painel sem scripts/estilos externos (funciona sem internet)")
 
     print("\n== Economia de energia do Wi-Fi ==")
     bg = corpo_funcao(web, r"void\s+WebServerManager::begin\s*\([^)]*\)") or ""
@@ -319,10 +338,11 @@ def teste_placa(host, firmware_esperado, limite_ms, testar_portal, testar_upload
         "/flash-info": ["flash", "fs"],
         "/device-info": ["ssid", "ip", "rssi", "hostname", "otaDefaultPassword"],
         "/state": ["time", "synced", "on", "status", "remaining", "auto", "sensor"],
+        "/history": ["now", "step", "auto", "trigger", "t", "temp", "hum", "on"],
     }
     dados = {}
     for rota in ["/", "/recovery", "/time", "/status", "/remaining", "/get-auto-settings",
-                 "/sensor-data", "/system", "/flash-info", "/device-info", "/state"]:
+                 "/sensor-data", "/system", "/flash-info", "/device-info", "/state", "/history"]:
         try:
             status, corpo, ttfb = get(alvo, rota)
         except Exception as e:
@@ -363,6 +383,18 @@ def teste_placa(host, firmware_esperado, limite_ms, testar_portal, testar_upload
                 # Compara com o relogio do PC (que pode estar alguns segundos fora)
                 checar(dif <= 5, f"hora da placa bate com o PC (diferenca {dif:.0f} s) -> NTP funcionando",
                        f"hora da placa {dif:.0f} s diferente do PC -> NTP nao esta atualizando")
+
+    hist = dados.get("/history")
+    if hist:
+        n = len(hist.get("t", []))
+        mesmos = all(len(hist.get(c, [])) == n for c in ("temp", "hum", "on"))
+        checar(mesmos, f"/history com arrays do mesmo tamanho ({n} amostras)", "/history com arrays de tamanhos diferentes")
+        if n:
+            checar(all(b > a for a, b in zip(hist["t"], hist["t"][1:])), "/history em ordem cronologica")
+            if hist.get("now"):
+                checar(hist["now"] - hist["t"][0] <= 86400 + 300, "/history so traz as ultimas 24 h")
+        else:
+            aviso("/history ainda vazio (primeiro ponto em ate 5 min apos a hora da internet)")
 
     if tempos:
         mediana = statistics.median(tempos) * 1000

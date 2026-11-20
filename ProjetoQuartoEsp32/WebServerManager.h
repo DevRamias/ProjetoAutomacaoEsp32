@@ -7,6 +7,7 @@
 #include "NTPManager.h"
 #include "DHTManager.h"
 #include "OTAManager.h"
+#include "HistoryManager.h"
 #include <WiFiManager.h>
 
 class WebServerManager {
@@ -14,6 +15,7 @@ public:
   void begin(RelayManager* relayManager, NTPManager* ntpManager, WiFiManager* wifiManager, DHTManager* dhtManager);
   void handleClient();
   void setOTAManager(OTAManager* otaManager) { this->otaManager = otaManager; }
+  void setHistoryManager(HistoryManager* historyManager) { this->historyManager = historyManager; }
 
   // Chamado a cada requisicao recebida: tira o Wi-Fi do modo economico
   // enquanto alguem estiver usando o painel.
@@ -26,6 +28,7 @@ private:
   WiFiManager* wifiManager;
   DHTManager* dhtManager;
   OTAManager* otaManager = nullptr;
+  HistoryManager* historyManager = nullptr;
 
   bool shouldStartPortal;
   unsigned long _lastMemoryLog;
@@ -57,6 +60,7 @@ private:
   void handleDeviceInfo();     // rede, IP, sinal e status da senha (/device-info)  // apaga o /index.html salvo (/reset-html)
   void handleSetAutoSettings();
   void handleGetAutoSettings();
+  void handleHistory();        // ultimas 24 h de temperatura/umidade (/history)
   void handleState();          // tudo do painel numa requisicao so (/state)
   void handleUploadRaw();      // recebe o HTML em pedacos (sem carregar tudo na RAM)
 

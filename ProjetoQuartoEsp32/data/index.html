@@ -276,6 +276,38 @@
     .theme-switch { width: 52px; height: 52px; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, .85); border: 1px solid rgba(40, 50, 90, .08); box-shadow: var(--sombra); backdrop-filter: blur(6px); }
     .theme-switch .fas { font-size: 1.1em; }
 
+    /* ---------- Grafico do historico ---------- */
+    .hist-chart { position: relative; width: 100%; margin-top: .25rem; touch-action: pan-y; }
+    @media (max-width: 480px) { #historyCard { padding: 1rem .6rem; } #historyCard h3 { font-size: 1.35rem; } }
+    .hist-chart svg { display: block; width: 100%; height: auto; overflow: visible; font-variant-numeric: tabular-nums; }
+    .hist-empty { padding: 80px 0; margin: 0; }
+    .hist-grid { stroke: rgba(40, 50, 90, .09); stroke-width: 1; }
+    .hist-axis { fill: #8a91a6; font-size: 11px; }
+    .hist-hum { fill: none; stroke: #8fa3c2; stroke-width: 1.5; stroke-opacity: .75; stroke-linejoin: round; }
+    .hist-temp { fill: none; stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+    .hist-on { fill: var(--g1); fill-opacity: .10; }
+    .hist-trig { stroke: #e0852b; stroke-width: 1.4; stroke-dasharray: 5 4; }
+    .hist-trig-label { fill: #e0852b; font-size: 11px; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+    .hist-cursor { stroke: rgba(40, 50, 90, .35); stroke-width: 1; }
+    .hist-dot { stroke: #fff; stroke-width: 2; }
+    .hist-tip { position: absolute; top: 4px; pointer-events: none; padding: .35em .65em; border-radius: 10px; background: rgba(255, 255, 255, .95); box-shadow: 0 4px 16px rgba(40, 50, 90, .15); font-size: .8em; line-height: 1.35; text-align: left; white-space: nowrap; display: none; }
+    .hist-tip b { font-variant-numeric: tabular-nums; }
+    .hist-legend { display: flex; flex-wrap: wrap; justify-content: center; margin-top: .5rem; font-size: .9em; }
+    .hist-key { display: inline-block; width: 18px; height: 4px; border-radius: 2px; }
+    .hist-key-temp { background: linear-gradient(90deg, var(--g1), var(--g2)); height: 4px; }
+    .hist-key-hum { background: #8fa3c2; height: 2px; }
+    .hist-key-on { background: var(--g1); opacity: .25; height: 12px; width: 14px; border-radius: 3px; }
+    .hist-key-trig { height: 0; border-top: 2px dashed #e0852b; border-radius: 0; }
+    .dark-theme .hist-grid { stroke: rgba(255, 255, 255, .07); }
+    .dark-theme .hist-axis { fill: #8e96ab; }
+    .dark-theme .hist-hum { stroke: #7f93b5; }
+    .dark-theme .hist-key-hum { background: #7f93b5; }
+    .dark-theme .hist-on { fill: #8b80ff; fill-opacity: .14; }
+    .dark-theme .hist-trig-label { stroke: #232735; }
+    .dark-theme .hist-cursor { stroke: rgba(255, 255, 255, .3); }
+    .dark-theme .hist-dot { stroke: #232735; }
+    .dark-theme .hist-tip { background: rgba(28, 32, 48, .96); color: #f1f3f8; box-shadow: 0 4px 16px rgba(0, 0, 0, .4); }
+
     /* ---------- Tema escuro ---------- */
     .dark-theme { background: linear-gradient(160deg, #1b1e28 0%, #12141b 100%); }
     .dark-theme .card { background: #232735; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
@@ -325,6 +357,23 @@
             </div>
           </div>
           <p id="sensorStatus" class="mt-3 text-center text-muted">Carregando dados do sensor...</p>
+        </div>
+      </div>
+
+      <!-- Historico das ultimas 24 h (grafico em SVG desenhado pelo JS, sem bibliotecas) -->
+      <div class="card p-4 mt-3" id="historyCard">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+          <h3 class="mb-0"><i class="fas fa-clock"></i> Histórico (24 h)</h3>
+          <small id="histSummary" class="text-muted"></small>
+        </div>
+        <div id="histChart" class="hist-chart" aria-label="Gráfico de temperatura e umidade das últimas 24 horas">
+          <p class="text-muted hist-empty">Carregando histórico...</p>
+        </div>
+        <div class="hist-legend">
+          <span class="chip"><span class="hist-key hist-key-temp"></span>Temperatura</span>
+          <span class="chip"><span class="hist-key hist-key-hum"></span>Umidade</span>
+          <span class="chip"><span class="hist-key hist-key-on"></span>Ventilador ligado</span>
+          <span class="chip" id="histKeyTrigger"><span class="hist-key hist-key-trig"></span>Gatilho do automático</span>
         </div>
       </div>
 
@@ -905,6 +954,177 @@
           });
       };
 
+      // ---------------- Historico (24 h) ----------------
+      // Grafico em SVG desenhado aqui mesmo (sem bibliotecas: funciona sem internet).
+      // Dados de /history: arrays paralelos t (epoch), temp, hum e on (ventilador).
+      let historyData = null;
+      const HIST_FUSO = -3 * 3600; // mesmo fuso fixo do firmware (Brasilia)
+      const histHora = (t, comMin = true) => {
+        const d = new Date((t + HIST_FUSO) * 1000);
+        return comMin ? `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}` : `${pad2(d.getUTCHours())}h`;
+      };
+      const fmt1 = v => v.toFixed(1).replace('.', ',');
+
+      function fetchHistory() {
+        fetchData('/history').then(h => { historyData = h; drawHistory(); }).catch(() => {
+          if (!historyData) document.getElementById('histChart').innerHTML =
+            '<p class="text-muted hist-empty">Não foi possível carregar o histórico.</p>';
+        });
+      }
+
+      function drawHistory() {
+        const box = document.getElementById('histChart');
+        const h = historyData;
+        if (!box || !h) return;
+        const n = (h.t || []).length;
+        const summary = document.getElementById('histSummary');
+        document.getElementById('histKeyTrigger').style.display = h.auto ? '' : 'none';
+        if (n < 2) {
+          box.innerHTML = '<p class="text-muted hist-empty">' + (h.now ? 'Coletando dados: um ponto a cada 5 minutos.' :
+            'Aguardando a hora da internet para começar a registrar.') + '</p>';
+          summary.textContent = '';
+          return;
+        }
+
+        // Dimensoes: usa a largura real do cartao (fica nitido no celular e no PC)
+        const W = Math.max(220, Math.round(box.clientWidth || 520));
+        const H = W < 480 ? Math.round(W * 0.7) : 230;
+        const M = W < 480 ? { l: 28, r: 30, t: 12, b: 22 } : { l: 34, r: 34, t: 12, b: 24 };
+        const pw = W - M.l - M.r, ph = H - M.t - M.b;
+        const step = h.step || 300;
+        const tEnd = h.now || h.t[n - 1];
+        const tStart = tEnd - 86400;
+        const x = t => M.l + (t - tStart) / 86400 * pw;
+
+        // Escala da temperatura: dados + gatilho (se o automatico estiver ligado)
+        const temps = h.temp.filter(v => v !== null);
+        if (h.auto && typeof h.trigger === 'number') temps.push(h.trigger);
+        // 4 divisoes de grau inteiro (marcas "redondas" no eixo)
+        let tMin = Math.floor(Math.min(...temps) - 0.5), tMax = Math.ceil(Math.max(...temps) + 0.5);
+        const passoT = Math.max(1, Math.ceil((tMax - tMin) / 4));
+        const maxReal = Math.max(...temps);
+        tMin = Math.floor((tMin + tMax) / 2 - passoT * 2);
+        if (tMin + passoT * 4 < maxReal + 0.3) tMin++;
+        tMax = tMin + passoT * 4;
+        const yT = v => M.t + (tMax - v) / (tMax - tMin) * ph;
+        const yH = v => M.t + (100 - v) / 100 * ph;
+
+        // Linhas com quebra onde faltam dados (placa desligada / sem leitura)
+        const caminho = (vals, y) => {
+          let d = '', prevT = null;
+          for (let i = 0; i < n; i++) {
+            const v = vals[i];
+            if (v === null || h.t[i] < tStart) { prevT = null; continue; }
+            const novo = prevT === null || h.t[i] - prevT > step * 2.5;
+            d += `${novo ? 'M' : 'L'}${x(h.t[i]).toFixed(1)},${y(v).toFixed(1)}`;
+            prevT = h.t[i];
+          }
+          return d;
+        };
+
+        let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">`;
+        svg += `<defs><linearGradient id="histGrad" gradientUnits="userSpaceOnUse" x1="${M.l}" y1="0" x2="${W - M.r}" y2="0">` +
+          `<stop offset="0" stop-color="var(--g1)"/><stop offset="1" stop-color="var(--g2)"/></linearGradient>` +
+          `<linearGradient id="histFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--g1)" stop-opacity=".18"/>` +
+          `<stop offset="1" stop-color="var(--g2)" stop-opacity="0"/></linearGradient></defs>`;
+
+        // Faixas: ventilador ligado (cada amostra cobre os 5 min anteriores)
+        let i = 0;
+        while (i < n) {
+          if (!h.on[i]) { i++; continue; }
+          let j = i;
+          while (j + 1 < n && h.on[j + 1] && h.t[j + 1] - h.t[j] <= step * 1.5) j++;
+          const x0 = Math.max(M.l, x(h.t[i] - step)), x1 = x(h.t[j]);
+          if (x1 > M.l) svg += `<rect class="hist-on" x="${x0.toFixed(1)}" y="${M.t}" width="${Math.max(1.5, x1 - x0).toFixed(1)}" height="${ph}" rx="3"/>`;
+          i = j + 1;
+        }
+
+        // Grade horizontal e eixo da temperatura (esquerda) / umidade (direita)
+        const passos = 4;
+        for (let k = 0; k <= passos; k++) {
+          const y = M.t + ph * k / passos;
+          const tv = tMax - (tMax - tMin) * k / passos;
+          svg += `<line class="hist-grid" x1="${M.l}" x2="${W - M.r}" y1="${y}" y2="${y}"/>`;
+          svg += `<text class="hist-axis" x="${M.l - 6}" y="${y + 4}" text-anchor="end">${Math.round(tv)}°</text>`;
+          svg += `<text class="hist-axis" x="${W - M.r + 6}" y="${y + 4}">${Math.round(100 - 100 * k / passos)}%</text>`;
+        }
+        // Eixo do tempo: marcas nas horas cheias multiplas de 6 (ou 4 no PC)
+        const cada = (W < 480 ? 6 : 4) * 3600;
+        const local0 = tStart + HIST_FUSO;
+        for (let t = Math.ceil(local0 / cada) * cada - HIST_FUSO; t <= tEnd; t += cada) {
+          const xx = x(t);
+          svg += `<line class="hist-grid" x1="${xx}" x2="${xx}" y1="${M.t}" y2="${M.t + ph}" stroke-dasharray="2 4"/>`;
+          svg += `<text class="hist-axis" x="${xx}" y="${H - 6}" text-anchor="middle">${histHora(t, false)}</text>`;
+        }
+
+        // Gatilho do automatico (linha tracejada)
+        if (h.auto && typeof h.trigger === 'number') {
+          const y = yT(h.trigger);
+          svg += `<line class="hist-trig" x1="${M.l}" x2="${W - M.r}" y1="${y}" y2="${y}"/>`;
+          // Rotulo na direita, do lado da linha oposto ao ponto mais recente (nao cobre a curva)
+          const ultimo = [...h.temp].reverse().find(v => v !== null);
+          const abaixo = ultimo !== undefined && ultimo > h.trigger;
+          svg += `<text class="hist-trig-label" x="${W - M.r - 4}" y="${abaixo ? y + 14 : y - 6}" text-anchor="end">liga acima de ${fmt1(h.trigger)}°</text>`;
+        }
+
+        // Umidade (discreta) e temperatura (gradiente, com area suave por baixo)
+        svg += `<path class="hist-hum" d="${caminho(h.hum, yH)}"/>`;
+        const dT = caminho(h.temp, yT);
+        const area = dT.replace(/M([\d.]+),[\d.]+((?:L[\d.]+,[\d.]+)*)/g, (m, x0, resto) => {
+          const ult = resto ? resto.slice(resto.lastIndexOf('L') + 1).split(',')[0] : x0;
+          return `${m}L${ult},${M.t + ph}L${x0},${M.t + ph}Z`;
+        });
+        svg += `<path d="${area}" fill="url(#histFill)" stroke="none"/>`;
+        svg += `<path class="hist-temp" d="${dT}" stroke="url(#histGrad)"/>`;
+
+        // Cursor (passar o mouse / tocar)
+        svg += `<line class="hist-cursor" id="histCursor" y1="${M.t}" y2="${M.t + ph}" style="display:none"/>`;
+        svg += `<circle class="hist-dot" id="histDotT" r="4" fill="var(--g1)" style="display:none"/>`;
+        svg += `<circle class="hist-dot" id="histDotH" r="3" fill="#8fa3c2" style="display:none"/>`;
+        svg += `<rect x="${M.l}" y="${M.t}" width="${pw}" height="${ph}" fill="transparent" id="histHit"/>`;
+        svg += '</svg><div class="hist-tip" id="histTip"></div>';
+        box.innerHTML = svg;
+
+        // Resumo: minima / maxima e tempo com o ventilador ligado
+        const tv = h.temp.filter(v => v !== null);
+        const minLigado = h.on.reduce((a, b) => a + b, 0) * step / 60;
+        const lig = minLigado >= 60 ? `${Math.floor(minLigado / 60)}h${pad2(Math.round(minLigado % 60))}` : `${Math.round(minLigado)} min`;
+        summary.textContent = tv.length ? `mín ${fmt1(Math.min(...tv))}° · máx ${fmt1(Math.max(...tv))}° · ligado ${lig}` : '';
+
+        const svgEl = box.querySelector('svg');
+        const hit = document.getElementById('histHit');
+        const tip = document.getElementById('histTip');
+        const cur = document.getElementById('histCursor');
+        const dotT = document.getElementById('histDotT');
+        const dotH = document.getElementById('histDotH');
+        const mostrar = ev => {
+          const r = svgEl.getBoundingClientRect();
+          const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) * W / r.width;
+          const alvo = tStart + (px - M.l) / pw * 86400;
+          let k = 0, melhor = Infinity;
+          for (let q = 0; q < n; q++) { const dd = Math.abs(h.t[q] - alvo); if (dd < melhor) { melhor = dd; k = q; } }
+          if (melhor > step * 2) { esconder(); return; }
+          const xx = x(h.t[k]);
+          cur.setAttribute('x1', xx); cur.setAttribute('x2', xx); cur.style.display = '';
+          if (h.temp[k] !== null) { dotT.setAttribute('cx', xx); dotT.setAttribute('cy', yT(h.temp[k])); dotT.style.display = ''; } else dotT.style.display = 'none';
+          if (h.hum[k] !== null) { dotH.setAttribute('cx', xx); dotH.setAttribute('cy', yH(h.hum[k])); dotH.style.display = ''; } else dotH.style.display = 'none';
+          tip.innerHTML = `<b>${histHora(h.t[k])}</b><br>${h.temp[k] !== null ? fmt1(h.temp[k]) + ' °C' : '--'} · ${h.hum[k] !== null ? h.hum[k] + '%' : '--'}` +
+            (h.on[k] ? '<br>ventilador ligado' : '');
+          tip.style.display = 'block';
+          const left = xx / W * r.width;
+          tip.style.left = Math.min(Math.max(0, left - tip.offsetWidth / 2), r.width - tip.offsetWidth) + 'px';
+        };
+        const esconder = () => { cur.style.display = dotT.style.display = dotH.style.display = 'none'; tip.style.display = 'none'; };
+        hit.addEventListener('mousemove', mostrar);
+        hit.addEventListener('mouseleave', esconder);
+        hit.addEventListener('touchstart', mostrar, { passive: true });
+        hit.addEventListener('touchmove', mostrar, { passive: true });
+      }
+
+      // Redesenha ao girar o celular / mudar o tamanho da janela
+      let histResize = null;
+      window.addEventListener('resize', () => { clearTimeout(histResize); histResize = setTimeout(drawHistory, 150); });
+
       // Inicialização
       document.addEventListener('DOMContentLoaded', () => {
         // Tema
@@ -924,12 +1144,15 @@
 
         // Configura atualizações periódicas (param com a aba escondida)
         every(updateSmartStatus, 5000); // estado completo a cada 5 segundos
+        fetchHistory();
+        every(fetchHistory, 300000);    // historico: um ponto novo a cada 5 min
         startPolling();
         document.addEventListener('visibilitychange', () => {
           if (document.hidden) {
             stopPolling();
           } else {
             updateSmartStatus(); // voltou para a aba: atualiza na hora
+            fetchHistory();
             startPolling();
           }
         });

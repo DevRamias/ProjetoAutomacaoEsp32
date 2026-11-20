@@ -94,6 +94,8 @@ void WebServerManager::begin(RelayManager* relayManager, NTPManager* ntpManager,
   server.on("/get-auto-settings", HTTP_GET, std::bind(&WebServerManager::handleGetAutoSettings, this));
   // Tudo que o painel precisa a cada poucos segundos, numa requisicao so
   server.on("/state", HTTP_GET, std::bind(&WebServerManager::handleState, this));
+  // Historico das ultimas 24 h para o grafico (uma amostra a cada 5 min)
+  server.on("/history", HTTP_GET, std::bind(&WebServerManager::handleHistory, this));
 
   server.begin();
   Serial.println("Servidor web iniciado!");
@@ -334,6 +336,73 @@ void WebServerManager::handleState() {
   String jsonStr;
   serializeJson(doc, jsonStr);
   server.send(200, "application/json", jsonStr);
+}
+
+// Historico para o grafico. JSON compacto, em arrays paralelos:
+//   {"now":epoch,"step":300,"auto":true,"trigger":30.0,
+//    "t":[epoch...],"temp":[25.0,...],"hum":[60,...],"on":[0,1,...]}
+// Sem leitura vai null. So entram amostras das ultimas 24 h.
+// Vai em pedacos (chunked) para nao montar ~6 KB de uma vez na RAM.
+void WebServerManager::handleHistory() {
+  time_t agora = time(nullptr);
+  bool synced = ntpManager->isSynced();
+  AutoSettings s = relayManager->getAutoSettings();
+
+  // Primeira amostra dentro das ultimas 24 h
+  uint16_t total = historyManager ? historyManager->count() : 0;
+  uint16_t inicio = 0;
+  if (synced) {
+    uint32_t limite = (uint32_t) agora > 86400 ? (uint32_t) agora - 86400 : 0;
+    while (inicio < total && historyManager->at(inicio).time < limite) inicio++;
+  }
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+
+  String out;
+  out.reserve(1200);
+  out += "{\"now\":";
+  out += synced ? String((uint32_t) agora) : String("null");
+  out += ",\"step\":";
+  out += String(HistoryManager::STEP_SECONDS);
+  out += ",\"auto\":";
+  out += s.active ? "true" : "false";
+  out += ",\"trigger\":";
+  out += String(s.minTemp, 1);
+
+  // Uma passada por campo; manda o texto sempre que passa de ~1 KB
+  const char* nomes[] = { "t", "temp", "hum", "on" };
+  for (uint8_t campo = 0; campo < 4; campo++) {
+    out += ",\"";
+    out += nomes[campo];
+    out += "\":[";
+    for (uint16_t i = inicio; i < total; i++) {
+      const HistoryManager::Sample& a = historyManager->at(i);
+      if (i > inicio) out += ',';
+      char num[16];
+      switch (campo) {
+        case 0: snprintf(num, sizeof(num), "%lu", (unsigned long) a.time); break;
+        case 1:
+          if (a.temp10 == INT16_MIN) strcpy(num, "null");
+          else snprintf(num, sizeof(num), "%.1f", a.temp10 / 10.0f);
+          break;
+        case 2:
+          if (a.humidity == 255) strcpy(num, "null");
+          else snprintf(num, sizeof(num), "%u", (unsigned) a.humidity);
+          break;
+        default: strcpy(num, (a.flags & 1) ? "1" : "0"); break;
+      }
+      out += num;
+      if (out.length() > 1000) {
+        server.sendContent(out);
+        out = "";
+      }
+    }
+    out += ']';
+  }
+  out += '}';
+  server.sendContent(out);
+  server.sendContent("");  // fim da resposta em pedacos
 }
 
 void WebServerManager::handleRemaining() {
