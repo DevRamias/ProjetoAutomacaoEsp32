@@ -71,7 +71,10 @@ void HistoryManager::record(uint32_t epoch) {
   float t = _dht ? _dht->readTemperature() : NAN;
   float h = _dht ? _dht->readHumidity() : NAN;
   s.temp10 = isnan(t) ? INT16_MIN : (int16_t) lroundf(t * 10.0f);
-  s.humidity = (isnan(h) || h < 0 || h > 100) ? 255 : (uint8_t) lroundf(h);
+  // Umidade segurada (ventilador ligado): no grafico fica em branco em vez
+  // de repetir um valor que nao foi medido agora
+  bool segurada = _dht && _dht->isHumidityHeld();
+  s.humidity = (segurada || isnan(h) || h < 0 || h > 100) ? 255 : (uint8_t) lroundf(h);
   s.flags = _onInInterval ? 1 : 0;
   push(s);
   _dirty = true;

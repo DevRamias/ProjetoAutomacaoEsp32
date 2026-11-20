@@ -10,7 +10,9 @@ DHTManager::DHTManager(uint8_t pin, uint8_t type) :
     _lastHumidityTime(0),
     _cacheDuration(15000), // 15 segundos de cache
     _error(false),
-    _humidityOffset(0.0) {} // Offset inicial zero
+    _humidityOffset(0.0), // Offset inicial zero
+    _relayActive(false),
+    _relayOffAt(0) {}
 
 void DHTManager::begin() {
     _dht.begin();
@@ -41,7 +43,26 @@ float DHTManager::readTemperature() {
     return _lastValidTemp;
 }
 
+void DHTManager::setRelayActive(bool active) {
+    if (_relayActive && !active) {
+        _relayOffAt = millis();
+        if (_relayOffAt == 0) _relayOffAt = 1;
+    }
+    _relayActive = active;
+}
+
+bool DHTManager::isHumidityHeld() const {
+    if (_relayActive) return true;
+    return _relayOffAt != 0 && millis() - _relayOffAt < HUMIDITY_SETTLE_MS;
+}
+
 float DHTManager::readHumidity() {
+    // Rele ligado (ou acabou de desligar): a leitura sai errada. Devolve o
+    // ultimo valor bom, medido antes de ligar, sem ler o sensor.
+    if (isHumidityHeld()) {
+        return _lastValidHumidity + _humidityOffset;
+    }
+
     // Retorna cache se válido (CORRIGIDO: cache proprio da umidade)
     if (millis() - _lastHumidityTime < _cacheDuration && !isnan(_lastValidHumidity)) {
         return _lastValidHumidity + _humidityOffset;

@@ -83,5 +83,7 @@ void loop() {
   webServerManager.handleClient();
   ntpManager.update();
   relayManager.update(dhtManager.readTemperature());
+  // Com o rele ligado a umidade do DHT11 sai errada (mesmo 3,3 V): segura o valor
+  dhtManager.setRelayActive(relayManager.isActive());
   historyManager.update();  // amostra a cada 5 min; salva a cada 30 min
 }

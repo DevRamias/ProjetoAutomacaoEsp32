@@ -329,6 +329,7 @@ void WebServerManager::handleState() {
     sensor["humidity"] = humidity;
     sensor["feelsLike"] = DHTManager::heatIndex(temp, humidity);
     sensor["lastUpdate"] = dhtManager->getLastReadingTime() / 1000;
+    sensor["humidityHeld"] = dhtManager->isHumidityHeld();
   } else {
     sensor["error"] = "Erro na leitura do sensor";
   }
@@ -425,6 +426,7 @@ void WebServerManager::handleSensorData() {
       // Agora usa o indice de calor padrao NWS/NOAA (Rothfusz).
       doc["feelsLike"] = DHTManager::heatIndex(temp, humidity);
       doc["lastUpdate"] = this->dhtManager->getLastReadingTime() / 1000;
+      doc["humidityHeld"] = this->dhtManager->isHumidityHeld();
     } else {
       doc["error"] = "Erro na leitura do sensor";
     }

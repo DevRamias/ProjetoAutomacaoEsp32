@@ -238,6 +238,12 @@ def teste_estatico():
     hist = sem_comentarios(ler("HistoryManager.cpp"))
     histh = sem_comentarios(ler("HistoryManager.h"))
     checar("historyManager.update()" in loop, "loop() alimenta o historico (historyManager.update)")
+    dht = sem_comentarios(ler("DHTManager.cpp"))
+    checar(re.search(r"dhtManager\.setRelayActive\(\s*relayManager\.isActive\(\)\s*\)", loop),
+           "loop() avisa o DHT quando o rele liga (umidade errada com a bobina ligada)")
+    leitura = corpo_funcao(dht, r"float\s+DHTManager::readHumidity\s*\(\s*\)") or ""
+    checar(leitura.find("isHumidityHeld()") >= 0 and leitura.find("isHumidityHeld()") < leitura.find("_dht.readHumidity()"),
+           "umidade segurada com o rele ligado (nao le o sensor nesse periodo)")
     checar(re.search(r"CAPACITY\s*=\s*288", histh) and re.search(r"STEP_SECONDS\s*=\s*300", histh),
            "historico guarda 288 amostras de 5 min (24 h)")
     checar("isSynced()" in hist, "historico so grava com a hora da internet")

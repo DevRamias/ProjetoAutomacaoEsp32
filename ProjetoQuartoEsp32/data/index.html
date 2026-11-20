@@ -1291,7 +1291,11 @@
 
         // Atualiza a mensagem de status
         // CORRIGIDO: 0 °C era tratado como "sem sinal"
-        if (!data.error && typeof data.temp === 'number' && typeof data.humidity === 'number') {
+        if (!data.error && typeof data.temp === 'number' && typeof data.humidity === 'number' && data.humidityHeld) {
+          // Rele ligado: a umidade lida sai errada, a placa mostra a ultima boa
+          document.getElementById('sensorStatus').innerText = 'Ventilador ligado: umidade e sensação mostram o último valor medido antes de ligar (o relé atrapalha a leitura).';
+          document.getElementById('sensorStatus').className = 'mt-3 text-center text-muted';
+        } else if (!data.error && typeof data.temp === 'number' && typeof data.humidity === 'number') {
           document.getElementById('sensorStatus').innerText = 'Dados atualizados com sucesso.';
           document.getElementById('sensorStatus').className = 'mt-3 text-center text-success';
         } else {

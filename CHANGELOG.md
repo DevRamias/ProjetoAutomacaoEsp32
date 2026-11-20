@@ -15,6 +15,7 @@ Este projeto segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/) 
 - `/flash-info` guarda o espaço usado do LittleFS em cache (calcular levava ~0,5 s).
 
 ### Corrigido
+- **Umidade e sensação térmica disparavam com o ventilador ligado** (ex.: 66% → 93% e 39 °C → 50 °C): a bobina do relé e o DHT11 dividem o mesmo 3,3 V e a leitura de umidade sai errada enquanto o relé está ligado (a temperatura não muda). Agora, com o relé ligado e até 45 s depois de desligar, a placa segura a última umidade boa medida antes de ligar; o painel avisa e o gráfico deixa a umidade em branco nesse trecho.
 - **Modo automático com o relógio errado:** logo após ligar, antes de pegar a hora da internet, o relógio marcava ~21:00 e o automático podia ligar o ventilador fora do horário. Agora ele espera a hora verdadeira. O horário também passou a ser conferido a cada 1 s (antes a cada 30 s).
 - **Envio do HTML deixava o painel em branco:** com páginas grandes (~48 KB) faltava memória, o firmware gravava o `index.html` vazio e respondia "sucesso". Agora o envio grava em pedaços num arquivo temporário e só troca a página se ela chegar completa.
 
